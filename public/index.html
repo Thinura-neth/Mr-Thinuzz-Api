@@ -2,30 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <meta name="theme-color" content="#0f0c29">
-    <meta name="description" content="Mr Thinuzz Advanced API Platform - No API Key, Unlimited Requests">
-    <title>Mr Thinuzz API | Advanced Platform</title>
+    <meta name="description" content="Mr Thinuzz API - Advanced Free API Platform">
+    <title>Mr Thinuzz API | Dashboard</title>
     
-    <!-- Preload critical assets -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     
-    <!-- Placeholder for dynamic styles -->
+
     <style id="dynamic-styles"></style>
 </head>
 <body>
-    <!-- Loading Screen - Temporary, will be replaced by JS -->
-    <div id="app-loader" class="loader-wrapper">
-        <div class="loader-spinner"></div>
-        <p>Loading Advanced Platform...</p>
+
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loader">
+            <div class="loader-spinner"></div>
+            <p>Initializing Dashboard...</p>
+        </div>
     </div>
     
-    <!-- Main App Container - Will be populated by JS -->
-    <div id="app-root"></div>
 
-    <!-- Main Application Script -->
-    <script src="/js/app.js"></script>
+    <div id="app"></div>
+    
+
+    <script src="/js/dashboard.js"></script>
 </body>
 </html>
