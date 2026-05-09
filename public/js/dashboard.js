@@ -1,6 +1,7 @@
 /**
  * MR THINUZZ ADVANCED DASHBOARD
- * Version: 3.0.0 - Cards Removed
+ * Version: 3.0.0 - FINAL
+ * Fully Responsive | Collapsed by Default | Dynamic Content Loading
  */
 
 // Configuration
@@ -34,9 +35,13 @@ class Dashboard {
         this.startRealTimeUpdates();
         this.hideLoader();
         
+        // Force collapse all sections after render
         setTimeout(() => {
             this.collapseAllSections();
         }, 100);
+        
+        // Setup mobile sidebar
+        this.setupMobileSidebar();
     }
 
     collapseAllSections() {
@@ -45,6 +50,33 @@ class Dashboard {
             const content = section.querySelector('.section-content');
             if (content) {
                 content.style.display = 'none';
+            }
+        });
+    }
+
+    setupMobileSidebar() {
+        // Create mobile sidebar toggle button if not exists
+        if (!document.querySelector('.mobile-sidebar-toggle')) {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'mobile-sidebar-toggle';
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            toggleBtn.id = 'mobileSidebarToggle';
+            document.body.appendChild(toggleBtn);
+            
+            toggleBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.toggle('active');
+            });
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            const sidebar = document.querySelector('.sidebar');
+            const toggle = document.querySelector('.mobile-sidebar-toggle');
+            if (window.innerWidth <= 576 && sidebar && sidebar.classList.contains('active')) {
+                if (!sidebar.contains(e.target) && !toggle?.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
             }
         });
     }
@@ -77,6 +109,7 @@ class Dashboard {
             </div>
         `;
         
+        // Load saved sidebar state
         const savedState = localStorage.getItem('sidebarCollapsed');
         if (savedState === 'true') {
             document.querySelector('.sidebar')?.classList.add('collapsed');
@@ -181,7 +214,7 @@ class Dashboard {
                 ${this.renderStatCard('🌐', 'Total Calls', 'stat-total', 'orange', 'fas fa-globe')}
             </div>
             
-            <!-- API Sections Removed from Dashboard -->
+            <!-- API Sections Removed from Dashboard as requested -->
             
             <div class="system-section">
                 <h3><i class="fas fa-cog"></i> System Endpoints</h3>
@@ -306,7 +339,7 @@ class Dashboard {
                         <li>✓ Free forever</li>
                     </ul>
                 </div>
-                <button class="back-btn" onclick="window.dashboard.switchPage('dashboard')">
+                <button class="back-btn" data-page="dashboard">
                     ← Back to Dashboard
                 </button>
             </div>
@@ -457,6 +490,7 @@ class Dashboard {
             this.stats.responseTime = `${Math.round(endTime - startTime)}ms`;
             this.stats.status = 'Online';
             
+            // Generate random but realistic looking stats
             this.stats.todayRequests = Math.floor(Math.random() * 200) + 50;
             this.stats.activeUsers = Math.floor(Math.random() * 30) + 5;
             this.stats.totalCalls = 893231 + Math.floor(Math.random() * 1000);
@@ -489,7 +523,7 @@ class Dashboard {
     }
 
     bindEvents() {
-        // Sidebar toggle
+        // Sidebar toggle (desktop)
         document.addEventListener('click', (e) => {
             const toggle = e.target.closest('#sidebarToggle');
             if (toggle) {
@@ -499,7 +533,7 @@ class Dashboard {
             }
         });
         
-        // Navigation
+        // Navigation - MAIN PAGE SWITCHING LOGIC
         document.addEventListener('click', (e) => {
             const link = e.target.closest('.nav-link');
             if (link && link.dataset.page) {
@@ -508,19 +542,46 @@ class Dashboard {
                 
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
+                
+                // Close mobile sidebar on navigation
+                if (window.innerWidth <= 576) {
+                    document.querySelector('.sidebar')?.classList.remove('active');
+                }
             }
         });
         
-        // Copy buttons
+        // Back button handler (for coming soon pages)
         document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.copy-btn');
-            if (btn && btn.dataset.code) {
-                navigator.clipboard.writeText(btn.dataset.code);
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 1500);
+            const backBtn = e.target.closest('.back-btn');
+            if (backBtn && backBtn.dataset.page) {
+                this.switchPage(backBtn.dataset.page);
+                
+                // Update active nav link
+                document.querySelectorAll('.nav-link').forEach(l => {
+                    l.classList.remove('active');
+                    if (l.dataset.page === backBtn.dataset.page) {
+                        l.classList.add('active');
+                    }
+                });
+            }
+        });
+        
+        // Section toggles
+        document.addEventListener('click', (e) => {
+            const header = e.target.closest('.section-header');
+            if (header) {
+                const section = header.closest('.api-section');
+                if (section) {
+                    section.classList.toggle('collapsed');
+                    const content = section.querySelector('.section-content');
+                    if (content) {
+                        if (section.classList.contains('collapsed')) {
+                            content.style.display = 'none';
+                        } else {
+                            content.style.display = 'block';
+                        }
+                    }
+                }
             }
         });
         
@@ -531,6 +592,9 @@ class Dashboard {
                 this.searchEndpoints(e.target.value);
             });
         }
+        
+        // Initial copy button binding
+        this.rebindCopyButtons();
     }
 
     switchPage(page) {
@@ -567,14 +631,23 @@ class Dashboard {
         
         contentWrapper.innerHTML = html;
         
+        // Update title and subtitle
         const titleElem = document.getElementById('pageTitle');
         const subtitleElem = document.getElementById('pageSubtitle');
         
         if (titleElem) titleElem.textContent = titles[page]?.title || 'Dashboard';
         if (subtitleElem) subtitleElem.textContent = titles[page]?.subtitle || '';
         
+        // Re-bind copy buttons for new content
         this.rebindCopyButtons();
         
+        // Re-bind section toggles for new content
+        this.rebindSectionToggles();
+        
+        // Re-bind back buttons
+        this.rebindBackButtons();
+        
+        // Scroll to top
         window.scrollTo(0, 0);
     }
 
@@ -592,6 +665,52 @@ class Dashboard {
                         setTimeout(() => {
                             btn.textContent = originalText;
                         }, 1500);
+                    }
+                });
+            }
+        });
+    }
+
+    rebindSectionToggles() {
+        document.querySelectorAll('.section-header').forEach(header => {
+            if (!header.hasListener) {
+                header.hasListener = true;
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const section = header.closest('.api-section');
+                    if (section) {
+                        section.classList.toggle('collapsed');
+                        const content = section.querySelector('.section-content');
+                        if (content) {
+                            if (section.classList.contains('collapsed')) {
+                                content.style.display = 'none';
+                            } else {
+                                content.style.display = 'block';
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    rebindBackButtons() {
+        document.querySelectorAll('.back-btn').forEach(btn => {
+            if (!btn.hasListener) {
+                btn.hasListener = true;
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = btn.dataset.page;
+                    if (page) {
+                        this.switchPage(page);
+                        
+                        // Update active nav link
+                        document.querySelectorAll('.nav-link').forEach(link => {
+                            link.classList.remove('active');
+                            if (link.dataset.page === page) {
+                                link.classList.add('active');
+                            }
+                        });
                     }
                 });
             }
@@ -631,7 +750,11 @@ class Dashboard {
                 item.addEventListener('click', () => {
                     const path = item.dataset.path;
                     navigator.clipboard.writeText(path);
-                    alert(`Copied: ${path}`);
+                    const originalText = item.innerHTML;
+                    item.innerHTML = '<div style="color: #10b981;">✓ Copied!</div>';
+                    setTimeout(() => {
+                        item.innerHTML = originalText;
+                    }, 1500);
                 });
             });
         } else {
@@ -680,7 +803,7 @@ class Dashboard {
     }
 }
 
-// Initialize
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new Dashboard();
 });
