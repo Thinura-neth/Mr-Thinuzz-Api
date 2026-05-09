@@ -317,4 +317,227 @@ class AdvancedAPIPlatform {
     "game_info": {
       "Genres/Tags": "Action, RPG, Open World",
       "Companies": "CD Projekt RED",
-      "Repack Size": "64.
+      "Repack Size": "64.5 GB"
+    },
+    "downloads": {
+      "direct_links": [...],
+      "torrent_links": [...]
+    }
+  }
+}`;
+    }
+
+    getGameDownloadResponse() {
+        return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "data": {
+    "original_url": "https://fuckingfast.co/...",
+    "download_url": "https://dl.fuckingfast.co/...",
+    "filename": "game.part1.rar"
+  }
+}`;
+    }
+
+    getAnimeSearchResponse() {
+        return `{
+  "status": true,
+  "source": "Jikan API (MyAnimeList)",
+  "data": {
+    "query": "naruto",
+    "total_results": 10,
+    "results": [
+      {
+        "id": 20,
+        "title": "Naruto",
+        "type": "TV",
+        "episodes": 220,
+        "score": 7.98,
+        "poster": "https://cdn.myanimelist.net/images/anime/..."
+      }
+    ]
+  }
+}`;
+    }
+
+    getAnimePopularResponse() {
+        return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "data": [
+    {
+      "id": 21,
+      "title": "One Piece",
+      "type": "TV",
+      "episodes": 1000+,
+      "score": 8.5
+    }
+  ]
+}`;
+    }
+
+    getAnimeInfoResponse() {
+        return `{
+  "status": true,
+  "data": {
+    "id": 21,
+    "title": "One Piece",
+    "title_english": "One Piece",
+    "type": "TV",
+    "episodes": 1000+,
+    "status": "Currently Airing",
+    "score": 8.5,
+    "synopsis": "...",
+    "poster": "https://..."
+  }
+}`;
+    }
+
+    renderSystemSection() {
+        return `
+            <div class="system-section">
+                <h3>🔧 System Endpoints</h3>
+                <div class="system-grid">
+                    <div class="system-item">
+                        <code>GET /health</code>
+                        <button class="copy-btn" data-code="/health">📋</button>
+                    </div>
+                    <div class="system-item">
+                        <code>GET /server-stats</code>
+                        <button class="copy-btn" data-code="/server-stats">📋</button>
+                    </div>
+                    <div class="system-item">
+                        <code>GET /api-info</code>
+                        <button class="copy-btn" data-code="/api-info">📋</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderGuideSection() {
+        return `
+            <div class="guide-section">
+                <h3>📖 Quick Start Guide</h3>
+                <div class="guide-grid">
+                    <div class="guide-step">
+                        <div class="step-number">1</div>
+                        <h4>Choose Endpoint</h4>
+                        <p>Select the API endpoint you need</p>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">2</div>
+                        <h4>Copy URL</h4>
+                        <p>Click copy button next to endpoint</p>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">3</div>
+                        <h4>Add Parameters</h4>
+                        <p>Replace q=SEARCH with your query</p>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">4</div>
+                        <h4>Make Request</h4>
+                        <p>Use any HTTP client (curl, browser, Postman)</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderFooter() {
+        return `
+            <footer class="api-footer">
+                <p>Made with <span class="footer-heart">❤️</span> by <strong>Mr Thinura</strong> | Free APIs for everyone</p>
+                <p style="font-size: 0.7rem; margin-top: 8px;">© 2026 Mr Thinuzz APIs - No Rate Limits • Forever Free • Advanced Platform v3.0</p>
+            </footer>
+        `;
+    }
+
+    bindEvents() {
+        // Section toggle
+        document.addEventListener('click', (e) => {
+            const header = e.target.closest('.section-header');
+            if (header) {
+                const section = header.closest('.api-section');
+                if (section) {
+                    section.classList.toggle('collapsed');
+                }
+            }
+        });
+        
+        // Copy buttons (delegated)
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.copy-btn');
+            if (btn) {
+                const code = btn.dataset.code;
+                if (code) {
+                    navigator.clipboard.writeText(code);
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 1500);
+                }
+            }
+        });
+    }
+
+    async updateStats() {
+        try {
+            const startTime = performance.now();
+            const response = await fetch('/health');
+            const endTime = performance.now();
+            const data = await response.json();
+            
+            this.stats.uptime = data.uptime || 'N/A';
+            this.stats.memory = data.memory_usage || 'N/A';
+            this.stats.responseTime = `${Math.round(endTime - startTime)}ms`;
+            this.stats.status = 'Online';
+            
+            // Update DOM
+            const uptimeEl = document.getElementById('stat-uptime');
+            const memoryEl = document.getElementById('stat-memory');
+            const responseEl = document.getElementById('stat-response');
+            const statusEl = document.getElementById('stat-status');
+            
+            if (uptimeEl) uptimeEl.textContent = this.stats.uptime;
+            if (memoryEl) memoryEl.textContent = this.stats.memory;
+            if (responseEl) responseEl.textContent = this.stats.responseTime;
+            if (statusEl) statusEl.innerHTML = '🟢 ' + this.stats.status;
+            
+        } catch (error) {
+            console.error('Stats update failed:', error);
+            const statusEl = document.getElementById('stat-status');
+            if (statusEl) statusEl.innerHTML = '🔴 Offline';
+        }
+    }
+
+    startRealTimeUpdates() {
+        this.updateStats();
+        setInterval(() => this.updateStats(), CONFIG.refreshInterval);
+    }
+
+    hideLoader() {
+        const loader = document.getElementById('app-loader');
+        const appRoot = document.getElementById('app-root');
+        
+        if (loader) {
+            loader.classList.add('fade-out');
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 600);
+        }
+        
+        if (appRoot) {
+            setTimeout(() => {
+                appRoot.classList.add('visible');
+            }, 100);
+        }
+    }
+}
+
+// Initialize application when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new AdvancedAPIPlatform();
+});
