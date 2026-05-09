@@ -912,3 +912,101 @@ body {
         text-align: center;
     }
 }
+/* ============================================
+   ADD THESE FIXES AT THE END OF YOUR DASHBOARD.CSS
+   ============================================ */
+
+/* Force collapsed sections to hide content */
+.api-section.collapsed .section-content {
+    display: none !important;
+}
+
+/* Ensure expanded sections show content */
+.api-section:not(.collapsed) .section-content {
+    display: block !important;
+}
+
+/* Coming Soon Full Page Styles */
+.coming-soon-full {
+    text-align: center;
+    padding: 60px 40px;
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    margin: 20px 0;
+}
+
+.coming-soon-full .coming-soon-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+}
+
+.coming-soon-full h2 {
+    font-size: 2rem;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.coming-soon-full p {
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+}
+
+.coming-soon-features {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    max-width: 400px;
+    margin: 0 auto 30px;
+}
+
+.coming-soon-features h4 {
+    margin-bottom: 12px;
+    color: var(--primary-light);
+}
+
+.coming-soon-features ul {
+    list-style: none;
+    padding: 0;
+}
+
+.coming-soon-features li {
+    padding: 6px 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.back-btn {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    padding: 12px 30px;
+    border-radius: 40px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.back-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glow-md);
+}
+
+/* Fix for section content display */
+.section-content {
+    transition: all 0.3s ease;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .coming-soon-full {
+        padding: 40px 20px;
+    }
+    
+    .coming-soon-full h2 {
+        font-size: 1.5rem;
+    }
+}
