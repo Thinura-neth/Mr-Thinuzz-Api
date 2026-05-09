@@ -1,7 +1,6 @@
 /**
  * MR THINUZZ ADVANCED DASHBOARD
- * Version: 3.0.0 - FULLY FIXED
- * Collapsed by Default | Dynamic Content Loading
+ * Version: 3.0.0 - Cards Removed
  */
 
 // Configuration
@@ -24,7 +23,6 @@ class Dashboard {
             activeUsers: 0,
             totalCalls: 0
         };
-        this.searchQuery = '';
         this.init();
     }
 
@@ -36,7 +34,6 @@ class Dashboard {
         this.startRealTimeUpdates();
         this.hideLoader();
         
-        // Force collapse all sections after render
         setTimeout(() => {
             this.collapseAllSections();
         }, 100);
@@ -80,7 +77,6 @@ class Dashboard {
             </div>
         `;
         
-        // After render, check for collapsed state
         const savedState = localStorage.getItem('sidebarCollapsed');
         if (savedState === 'true') {
             document.querySelector('.sidebar')?.classList.add('collapsed');
@@ -185,11 +181,7 @@ class Dashboard {
                 ${this.renderStatCard('🌐', 'Total Calls', 'stat-total', 'orange', 'fas fa-globe')}
             </div>
             
-            <div class="api-sections">
-                ${this.renderGameSection()}
-                ${this.renderAnimeSection()}
-                ${this.renderMovieSection()}
-            </div>
+            <!-- API Sections Removed from Dashboard -->
             
             <div class="system-section">
                 <h3><i class="fas fa-cog"></i> System Endpoints</h3>
@@ -231,81 +223,7 @@ class Dashboard {
         `;
     }
 
-    renderGameSection() {
-        return `
-            <div class="api-section collapsed" data-section="game">
-                <div class="section-header">
-                    <div class="section-icon">
-                        <i class="fas fa-gamepad"></i>
-                    </div>
-                    <h3 class="section-title">Games API - FitGirl Repacks</h3>
-                    <span class="section-badge">● Active</span>
-                    <div class="section-arrow">
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="section-content" style="display: none;">
-                    <p class="section-desc">Complete FitGirl Repacks API - Search, Info & Download endpoints with real-time scraping</p>
-                    <div class="endpoints-grid">
-                        ${this.renderEndpointCard('GET', '/game/fitgirl-search', 'Search for games on FitGirl Repacks', '/game/fitgirl-search?q=cyberpunk', this.getGameSearchResponse())}
-                        ${this.renderEndpointCard('GET', '/game/fitgirl-info', 'Get complete game info with all download links', '/game/fitgirl-info?url=https://fitgirl-repacks.site/cyberpunk-2077/', this.getGameInfoResponse())}
-                        ${this.renderEndpointCard('GET', '/game/fitgirl-download', 'Extract direct download link from fuckingfast.co', '/game/fitgirl-download?url=https://fuckingfast.co/...', this.getGameDownloadResponse())}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderAnimeSection() {
-        return `
-            <div class="api-section collapsed" data-section="anime">
-                <div class="section-header">
-                    <div class="section-icon">
-                        <i class="fas fa-tv"></i>
-                    </div>
-                    <h3 class="section-title">Anime API - Multi-Source</h3>
-                    <span class="section-badge">● Active</span>
-                    <div class="section-arrow">
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="section-content" style="display: none;">
-                    <p class="section-desc">Multi-source Anime API - Search, Popular, Info endpoints (Jikan API + AniList + Direct Scraping)</p>
-                    <div class="endpoints-grid">
-                        ${this.renderEndpointCard('GET', '/anime/search', 'Search for anime by title (Multi-source fallback)', '/anime/search?q=naruto', this.getAnimeSearchResponse())}
-                        ${this.renderEndpointCard('GET', '/anime/popular', 'Get top popular anime from MyAnimeList', '/anime/popular', this.getAnimePopularResponse())}
-                        ${this.renderEndpointCard('GET', '/anime/info', 'Get complete anime information by ID', '/anime/info?id=21', this.getAnimeInfoResponse())}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderMovieSection() {
-        return `
-            <div class="api-section collapsed" data-section="movie">
-                <div class="section-header">
-                    <div class="section-icon">
-                        <i class="fas fa-film"></i>
-                    </div>
-                    <h3 class="section-title">Movie API</h3>
-                    <span class="section-badge coming">Coming Soon</span>
-                    <div class="section-arrow">
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="section-content" style="display: none;">
-                    <div class="coming-soon">
-                        <div class="coming-soon-icon">🚧</div>
-                        <h4>Under Development</h4>
-                        <p>Movie API is currently being built with advanced features</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Games Page Content (No Stats Grid)
+    // Games Page Content
     renderGamesContent() {
         return `
             <div class="api-sections">
@@ -333,7 +251,7 @@ class Dashboard {
         `;
     }
 
-    // Anime Page Content (No Stats Grid)
+    // Anime Page Content
     renderAnimeContent() {
         return `
             <div class="api-sections">
@@ -539,7 +457,6 @@ class Dashboard {
             this.stats.responseTime = `${Math.round(endTime - startTime)}ms`;
             this.stats.status = 'Online';
             
-            // Generate random but realistic looking stats
             this.stats.todayRequests = Math.floor(Math.random() * 200) + 50;
             this.stats.activeUsers = Math.floor(Math.random() * 30) + 5;
             this.stats.totalCalls = 893231 + Math.floor(Math.random() * 1000);
@@ -582,7 +499,7 @@ class Dashboard {
             }
         });
         
-        // Navigation - MAIN PAGE SWITCHING LOGIC
+        // Navigation
         document.addEventListener('click', (e) => {
             const link = e.target.closest('.nav-link');
             if (link && link.dataset.page) {
@@ -591,25 +508,6 @@ class Dashboard {
                 
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
-            }
-        });
-        
-        // Section toggles
-        document.addEventListener('click', (e) => {
-            const header = e.target.closest('.section-header');
-            if (header) {
-                const section = header.closest('.api-section');
-                if (section) {
-                    section.classList.toggle('collapsed');
-                    const content = section.querySelector('.section-content');
-                    if (content) {
-                        if (section.classList.contains('collapsed')) {
-                            content.style.display = 'none';
-                        } else {
-                            content.style.display = 'block';
-                        }
-                    }
-                }
             }
         });
         
@@ -635,7 +533,6 @@ class Dashboard {
         }
     }
 
-    // MAIN PAGE SWITCH FUNCTION
     switchPage(page) {
         this.currentPage = page;
         const contentWrapper = document.getElementById('contentWrapper');
@@ -670,20 +567,14 @@ class Dashboard {
         
         contentWrapper.innerHTML = html;
         
-        // Update title and subtitle
         const titleElem = document.getElementById('pageTitle');
         const subtitleElem = document.getElementById('pageSubtitle');
         
         if (titleElem) titleElem.textContent = titles[page]?.title || 'Dashboard';
         if (subtitleElem) subtitleElem.textContent = titles[page]?.subtitle || '';
         
-        // Re-bind copy buttons for new content
         this.rebindCopyButtons();
         
-        // Re-bind section toggles for new content
-        this.rebindSectionToggles();
-        
-        // Scroll to top
         window.scrollTo(0, 0);
     }
 
@@ -701,29 +592,6 @@ class Dashboard {
                         setTimeout(() => {
                             btn.textContent = originalText;
                         }, 1500);
-                    }
-                });
-            }
-        });
-    }
-
-    rebindSectionToggles() {
-        document.querySelectorAll('.section-header').forEach(header => {
-            if (!header.hasListener) {
-                header.hasListener = true;
-                header.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const section = header.closest('.api-section');
-                    if (section) {
-                        section.classList.toggle('collapsed');
-                        const content = section.querySelector('.section-content');
-                        if (content) {
-                            if (section.classList.contains('collapsed')) {
-                                content.style.display = 'none';
-                            } else {
-                                content.style.display = 'block';
-                            }
-                        }
                     }
                 });
             }
@@ -812,7 +680,7 @@ class Dashboard {
     }
 }
 
-// Initialize when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new Dashboard();
 });
