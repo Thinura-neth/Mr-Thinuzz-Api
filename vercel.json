@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "functions": {
+    "api/server.js": {
+      "maxDuration": 10
+    }
+  },
+  "routes": [
+    {
+      "src": "/dashboard.js",
+      "dest": "/dashboard.js"
+    },
+    {
+      "src": "/css/(.*)",
+      "dest": "/css/$1"
+    },
+    {
+      "src": "/js/(.*)",
+      "dest": "/js/$1"
+    },
+    {
+      "src": "/game/(.*)",
+      "dest": "/api/server.js"
+    },
+    {
+      "src": "/anime/(.*)",
+      "dest": "/api/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/server.js"
+    },
+    {
+      "src": "/server-stats",
+      "dest": "/api/server.js"
+    },
+    {
+      "src": "/api-info",
+      "dest": "/api/server.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/server.js"
+    }
+  ]
+}
