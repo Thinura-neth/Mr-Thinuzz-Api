@@ -33,6 +33,7 @@ class Dashboard {
         this.bindEvents();
         await this.updateStats();
         this.startRealTimeUpdates();
+        this.startLoadingAnimation();
         this.hideLoader();
         
         // Force collapse all sections after render
@@ -42,6 +43,65 @@ class Dashboard {
         
         // Setup mobile sidebar
         this.setupMobileSidebar();
+    }
+
+    startLoadingAnimation() {
+        let progress = 0;
+        const steps = ['step1', 'step2', 'step3', 'step4'];
+        let currentStep = 0;
+        const tips = [
+            "Free API • No Rate Limits • Real-time Scraping",
+            "🎮 Games API Active • FitGirl Repacks",
+            "📺 Anime API Active • Multi-Source",
+            "⚡ Real-time Statistics • Auto Refresh",
+            "🔒 No API Key Required • Forever Free",
+            "🚀 High Performance • Low Latency"
+        ];
+        
+        const progressBar = document.getElementById('loadingProgressBar');
+        const tipElement = document.getElementById('loadingTip');
+        let tipIndex = 0;
+        
+        // Rotate tips
+        const tipInterval = setInterval(() => {
+            tipIndex = (tipIndex + 1) % tips.length;
+            if (tipElement) {
+                tipElement.textContent = tips[tipIndex];
+            }
+        }, 2000);
+        
+        const interval = setInterval(() => {
+            progress += Math.random() * 15 + 5;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                clearInterval(tipInterval);
+            }
+            
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+            }
+            
+            // Update steps
+            const stepIndex = Math.floor(progress / 25);
+            if (stepIndex > currentStep && stepIndex < steps.length) {
+                const prevStep = document.getElementById(steps[currentStep]);
+                const currStep = document.getElementById(steps[stepIndex]);
+                
+                if (prevStep) {
+                    prevStep.classList.remove('active');
+                    prevStep.classList.add('completed');
+                    prevStep.querySelector('i').className = 'fas fa-check-circle';
+                }
+                
+                if (currStep) {
+                    currStep.classList.add('active');
+                    currStep.querySelector('i').className = 'fas fa-circle-notch fa-spin';
+                }
+                
+                currentStep = stepIndex;
+            }
+        }, 300);
     }
 
     collapseAllSections() {
@@ -55,14 +115,8 @@ class Dashboard {
     }
 
     setupMobileSidebar() {
-        // Create mobile sidebar toggle button if not exists
-        if (!document.querySelector('.mobile-sidebar-toggle')) {
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'mobile-sidebar-toggle';
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-            toggleBtn.id = 'mobileSidebarToggle';
-            document.body.appendChild(toggleBtn);
-            
+        const toggleBtn = document.getElementById('mobileSidebarToggle');
+        if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 const sidebar = document.querySelector('.sidebar');
                 sidebar.classList.toggle('active');
@@ -72,7 +126,7 @@ class Dashboard {
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', (e) => {
             const sidebar = document.querySelector('.sidebar');
-            const toggle = document.querySelector('.mobile-sidebar-toggle');
+            const toggle = document.getElementById('mobileSidebarToggle');
             if (window.innerWidth <= 576 && sidebar && sidebar.classList.contains('active')) {
                 if (!sidebar.contains(e.target) && !toggle?.contains(e.target)) {
                     sidebar.classList.remove('active');
@@ -214,8 +268,6 @@ class Dashboard {
                 ${this.renderStatCard('🌐', 'Total Calls', 'stat-total', 'orange', 'fas fa-globe')}
             </div>
             
-            <!-- API Sections Removed from Dashboard as requested -->
-            
             <div class="system-section">
                 <h3><i class="fas fa-cog"></i> System Endpoints</h3>
                 <div class="system-grid">
@@ -256,7 +308,6 @@ class Dashboard {
         `;
     }
 
-    // Games Page Content
     renderGamesContent() {
         return `
             <div class="api-sections">
@@ -284,7 +335,6 @@ class Dashboard {
         `;
     }
 
-    // Anime Page Content
     renderAnimeContent() {
         return `
             <div class="api-sections">
@@ -312,7 +362,6 @@ class Dashboard {
         `;
     }
 
-    // Coming Soon Page
     renderComingSoonContent(apiName) {
         const titles = {
             download: 'Download API',
@@ -375,7 +424,6 @@ class Dashboard {
         `;
     }
 
-    // Response Examples
     getGameSearchResponse() {
         return `{
   "status": true,
@@ -490,7 +538,6 @@ class Dashboard {
             this.stats.responseTime = `${Math.round(endTime - startTime)}ms`;
             this.stats.status = 'Online';
             
-            // Generate random but realistic looking stats
             this.stats.todayRequests = Math.floor(Math.random() * 200) + 50;
             this.stats.activeUsers = Math.floor(Math.random() * 30) + 5;
             this.stats.totalCalls = 893231 + Math.floor(Math.random() * 1000);
@@ -523,7 +570,6 @@ class Dashboard {
     }
 
     bindEvents() {
-        // Sidebar toggle (desktop)
         document.addEventListener('click', (e) => {
             const toggle = e.target.closest('#sidebarToggle');
             if (toggle) {
@@ -533,7 +579,6 @@ class Dashboard {
             }
         });
         
-        // Navigation - MAIN PAGE SWITCHING LOGIC
         document.addEventListener('click', (e) => {
             const link = e.target.closest('.nav-link');
             if (link && link.dataset.page) {
@@ -543,20 +588,17 @@ class Dashboard {
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
                 
-                // Close mobile sidebar on navigation
                 if (window.innerWidth <= 576) {
                     document.querySelector('.sidebar')?.classList.remove('active');
                 }
             }
         });
         
-        // Back button handler (for coming soon pages)
         document.addEventListener('click', (e) => {
             const backBtn = e.target.closest('.back-btn');
             if (backBtn && backBtn.dataset.page) {
                 this.switchPage(backBtn.dataset.page);
                 
-                // Update active nav link
                 document.querySelectorAll('.nav-link').forEach(l => {
                     l.classList.remove('active');
                     if (l.dataset.page === backBtn.dataset.page) {
@@ -566,7 +608,6 @@ class Dashboard {
             }
         });
         
-        // Section toggles
         document.addEventListener('click', (e) => {
             const header = e.target.closest('.section-header');
             if (header) {
@@ -585,7 +626,6 @@ class Dashboard {
             }
         });
         
-        // Global search
         const searchInput = document.getElementById('globalSearch');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -593,7 +633,6 @@ class Dashboard {
             });
         }
         
-        // Initial copy button binding
         this.rebindCopyButtons();
     }
 
@@ -631,23 +670,16 @@ class Dashboard {
         
         contentWrapper.innerHTML = html;
         
-        // Update title and subtitle
         const titleElem = document.getElementById('pageTitle');
         const subtitleElem = document.getElementById('pageSubtitle');
         
         if (titleElem) titleElem.textContent = titles[page]?.title || 'Dashboard';
         if (subtitleElem) subtitleElem.textContent = titles[page]?.subtitle || '';
         
-        // Re-bind copy buttons for new content
         this.rebindCopyButtons();
-        
-        // Re-bind section toggles for new content
         this.rebindSectionToggles();
-        
-        // Re-bind back buttons
         this.rebindBackButtons();
         
-        // Scroll to top
         window.scrollTo(0, 0);
     }
 
@@ -704,7 +736,6 @@ class Dashboard {
                     if (page) {
                         this.switchPage(page);
                         
-                        // Update active nav link
                         document.querySelectorAll('.nav-link').forEach(link => {
                             link.classList.remove('active');
                             if (link.dataset.page === page) {
@@ -785,25 +816,26 @@ class Dashboard {
     }
 
     hideLoader() {
-        const loader = document.getElementById('loadingScreen');
-        const app = document.getElementById('app');
-        
-        if (loader) {
-            loader.classList.add('fade-out');
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 500);
-        }
-        
-        if (app) {
-            setTimeout(() => {
-                app.classList.add('visible');
-            }, 100);
-        }
+        setTimeout(() => {
+            const loader = document.getElementById('loadingScreen');
+            const app = document.getElementById('app');
+            
+            if (loader) {
+                loader.classList.add('fade-out');
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }
+            
+            if (app) {
+                setTimeout(() => {
+                    app.classList.add('visible');
+                }, 100);
+            }
+        }, 2800);
     }
 }
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new Dashboard();
 });
