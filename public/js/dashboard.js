@@ -1,7 +1,7 @@
 /**
  * MR THINUZZ ADVANCED DASHBOARD
- * Version: 3.0.0
- * Fully Dynamic - All content loaded via JavaScript
+ * Version: 3.0.0 - FULLY FIXED
+ * Collapsed by Default | Dynamic Content Loading
  */
 
 // Configuration
@@ -35,6 +35,21 @@ class Dashboard {
         await this.updateStats();
         this.startRealTimeUpdates();
         this.hideLoader();
+        
+        // Force collapse all sections after render
+        setTimeout(() => {
+            this.collapseAllSections();
+        }, 100);
+    }
+
+    collapseAllSections() {
+        document.querySelectorAll('.api-section').forEach(section => {
+            section.classList.add('collapsed');
+            const content = section.querySelector('.section-content');
+            if (content) {
+                content.style.display = 'none';
+            }
+        });
     }
 
     loadStyles() {
@@ -173,6 +188,7 @@ class Dashboard {
             <div class="api-sections">
                 ${this.renderGameSection()}
                 ${this.renderAnimeSection()}
+                ${this.renderMovieSection()}
             </div>
             
             <div class="system-section">
@@ -180,15 +196,15 @@ class Dashboard {
                 <div class="system-grid">
                     <div class="system-item">
                         <code>GET /health</code>
-                        <button class="copy-btn" data-code="/health">📋</button>
+                        <button class="copy-btn" data-code="/health">📋 Copy</button>
                     </div>
                     <div class="system-item">
                         <code>GET /server-stats</code>
-                        <button class="copy-btn" data-code="/server-stats">📋</button>
+                        <button class="copy-btn" data-code="/server-stats">📋 Copy</button>
                     </div>
                     <div class="system-item">
                         <code>GET /api-info</code>
-                        <button class="copy-btn" data-code="/api-info">📋</button>
+                        <button class="copy-btn" data-code="/api-info">📋 Copy</button>
                     </div>
                 </div>
             </div>
@@ -228,7 +244,7 @@ class Dashboard {
                         <i class="fas fa-chevron-down"></i>
                     </div>
                 </div>
-                <div class="section-content">
+                <div class="section-content" style="display: none;">
                     <p class="section-desc">Complete FitGirl Repacks API - Search, Info & Download endpoints with real-time scraping</p>
                     <div class="endpoints-grid">
                         ${this.renderEndpointCard('GET', '/game/fitgirl-search', 'Search for games on FitGirl Repacks', '/game/fitgirl-search?q=cyberpunk', this.getGameSearchResponse())}
@@ -253,7 +269,7 @@ class Dashboard {
                         <i class="fas fa-chevron-down"></i>
                     </div>
                 </div>
-                <div class="section-content">
+                <div class="section-content" style="display: none;">
                     <p class="section-desc">Multi-source Anime API - Search, Popular, Info endpoints (Jikan API + AniList + Direct Scraping)</p>
                     <div class="endpoints-grid">
                         ${this.renderEndpointCard('GET', '/anime/search', 'Search for anime by title (Multi-source fallback)', '/anime/search?q=naruto', this.getAnimeSearchResponse())}
@@ -261,6 +277,120 @@ class Dashboard {
                         ${this.renderEndpointCard('GET', '/anime/info', 'Get complete anime information by ID', '/anime/info?id=21', this.getAnimeInfoResponse())}
                     </div>
                 </div>
+            </div>
+        `;
+    }
+
+    renderMovieSection() {
+        return `
+            <div class="api-section collapsed" data-section="movie">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-film"></i>
+                    </div>
+                    <h3 class="section-title">Movie API</h3>
+                    <span class="section-badge coming">Coming Soon</span>
+                    <div class="section-arrow">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="coming-soon">
+                        <div class="coming-soon-icon">🚧</div>
+                        <h4>Under Development</h4>
+                        <p>Movie API is currently being built with advanced features</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Games Page Content (No Stats Grid)
+    renderGamesContent() {
+        return `
+            <div class="api-sections">
+                <div class="api-section" data-section="game">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="fas fa-gamepad"></i>
+                        </div>
+                        <h3 class="section-title">Games API - FitGirl Repacks</h3>
+                        <span class="section-badge">● Active</span>
+                        <div class="section-arrow">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <p class="section-desc">Complete FitGirl Repacks API - Search, Info & Download endpoints with real-time scraping</p>
+                        <div class="endpoints-grid">
+                            ${this.renderEndpointCard('GET', '/game/fitgirl-search', 'Search for games on FitGirl Repacks', '/game/fitgirl-search?q=cyberpunk', this.getGameSearchResponse())}
+                            ${this.renderEndpointCard('GET', '/game/fitgirl-info', 'Get complete game info with all download links', '/game/fitgirl-info?url=https://fitgirl-repacks.site/cyberpunk-2077/', this.getGameInfoResponse())}
+                            ${this.renderEndpointCard('GET', '/game/fitgirl-download', 'Extract direct download link from fuckingfast.co', '/game/fitgirl-download?url=https://fuckingfast.co/...', this.getGameDownloadResponse())}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Anime Page Content (No Stats Grid)
+    renderAnimeContent() {
+        return `
+            <div class="api-sections">
+                <div class="api-section" data-section="anime">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="fas fa-tv"></i>
+                        </div>
+                        <h3 class="section-title">Anime API - Multi-Source</h3>
+                        <span class="section-badge">● Active</span>
+                        <div class="section-arrow">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <p class="section-desc">Multi-source Anime API - Search, Popular, Info endpoints (Jikan API + AniList + Direct Scraping)</p>
+                        <div class="endpoints-grid">
+                            ${this.renderEndpointCard('GET', '/anime/search', 'Search for anime by title (Multi-source fallback)', '/anime/search?q=naruto', this.getAnimeSearchResponse())}
+                            ${this.renderEndpointCard('GET', '/anime/popular', 'Get top popular anime from MyAnimeList', '/anime/popular', this.getAnimePopularResponse())}
+                            ${this.renderEndpointCard('GET', '/anime/info', 'Get complete anime information by ID', '/anime/info?id=21', this.getAnimeInfoResponse())}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Coming Soon Page
+    renderComingSoonContent(apiName) {
+        const titles = {
+            download: 'Download API',
+            ai: 'AI API',
+            movie: 'Movie API',
+            search: 'Search API',
+            stalk: 'Stalk API'
+        };
+        
+        const title = titles[apiName] || 'API';
+        
+        return `
+            <div class="coming-soon-full">
+                <div class="coming-soon-icon">🚧</div>
+                <h2>${title} - Coming Soon</h2>
+                <p>This API is currently under development. We're working hard to bring you amazing features!</p>
+                <div class="coming-soon-features">
+                    <h4>Planned Features:</h4>
+                    <ul>
+                        <li>✓ High-speed scraping</li>
+                        <li>✓ Multiple source fallbacks</li>
+                        <li>✓ Real-time data updates</li>
+                        <li>✓ No rate limits</li>
+                        <li>✓ Free forever</li>
+                    </ul>
+                </div>
+                <button class="back-btn" onclick="window.dashboard.switchPage('dashboard')">
+                    ← Back to Dashboard
+                </button>
             </div>
         `;
     }
@@ -404,7 +534,6 @@ class Dashboard {
             const endTime = performance.now();
             const data = await response.json();
             
-            // Update real stats
             this.stats.uptime = data.uptime || 'N/A';
             this.stats.memory = data.memory_usage || 'N/A';
             this.stats.responseTime = `${Math.round(endTime - startTime)}ms`;
@@ -415,7 +544,6 @@ class Dashboard {
             this.stats.activeUsers = Math.floor(Math.random() * 30) + 5;
             this.stats.totalCalls = 893231 + Math.floor(Math.random() * 1000);
             
-            // Update DOM
             this.updateStatElement('stat-uptime', this.stats.uptime);
             this.updateStatElement('stat-memory', this.stats.memory);
             this.updateStatElement('stat-response', this.stats.responseTime);
@@ -454,14 +582,13 @@ class Dashboard {
             }
         });
         
-        // Navigation
+        // Navigation - MAIN PAGE SWITCHING LOGIC
         document.addEventListener('click', (e) => {
             const link = e.target.closest('.nav-link');
             if (link && link.dataset.page) {
                 e.preventDefault();
                 this.switchPage(link.dataset.page);
                 
-                // Update active state
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
             }
@@ -474,6 +601,14 @@ class Dashboard {
                 const section = header.closest('.api-section');
                 if (section) {
                     section.classList.toggle('collapsed');
+                    const content = section.querySelector('.section-content');
+                    if (content) {
+                        if (section.classList.contains('collapsed')) {
+                            content.style.display = 'none';
+                        } else {
+                            content.style.display = 'block';
+                        }
+                    }
                 }
             }
         });
@@ -484,7 +619,7 @@ class Dashboard {
             if (btn && btn.dataset.code) {
                 navigator.clipboard.writeText(btn.dataset.code);
                 const originalText = btn.textContent;
-                btn.textContent = '✓';
+                btn.textContent = '✓ Copied!';
                 setTimeout(() => {
                     btn.textContent = originalText;
                 }, 1500);
@@ -498,6 +633,101 @@ class Dashboard {
                 this.searchEndpoints(e.target.value);
             });
         }
+    }
+
+    // MAIN PAGE SWITCH FUNCTION
+    switchPage(page) {
+        this.currentPage = page;
+        const contentWrapper = document.getElementById('contentWrapper');
+        if (!contentWrapper) return;
+        
+        const titles = {
+            dashboard: { title: 'Dashboard Overview', subtitle: 'Real-time API Statistics & Monitoring' },
+            games: { title: 'Games API', subtitle: 'FitGirl Repacks - Search, Info & Download' },
+            anime: { title: 'Anime API', subtitle: 'Multi-source Anime API - Search, Popular, Info' },
+            download: { title: 'Download API', subtitle: 'Direct Download Links Extractor' },
+            ai: { title: 'AI API', subtitle: 'Coming Soon - AI-powered Features' },
+            movie: { title: 'Movie API', subtitle: 'Coming Soon - Movie Information' },
+            search: { title: 'Search API', subtitle: 'Coming Soon - Universal Search' },
+            stalk: { title: 'Stalk API', subtitle: 'Coming Soon - Social Media Tools' }
+        };
+        
+        let html = '';
+        
+        switch(page) {
+            case 'dashboard':
+                html = this.renderDashboardContent();
+                break;
+            case 'games':
+                html = this.renderGamesContent();
+                break;
+            case 'anime':
+                html = this.renderAnimeContent();
+                break;
+            default:
+                html = this.renderComingSoonContent(page);
+        }
+        
+        contentWrapper.innerHTML = html;
+        
+        // Update title and subtitle
+        const titleElem = document.getElementById('pageTitle');
+        const subtitleElem = document.getElementById('pageSubtitle');
+        
+        if (titleElem) titleElem.textContent = titles[page]?.title || 'Dashboard';
+        if (subtitleElem) subtitleElem.textContent = titles[page]?.subtitle || '';
+        
+        // Re-bind copy buttons for new content
+        this.rebindCopyButtons();
+        
+        // Re-bind section toggles for new content
+        this.rebindSectionToggles();
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+
+    rebindCopyButtons() {
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            if (!btn.hasListener) {
+                btn.hasListener = true;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const code = btn.dataset.code;
+                    if (code) {
+                        navigator.clipboard.writeText(code);
+                        const originalText = btn.textContent;
+                        btn.textContent = '✓ Copied!';
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                        }, 1500);
+                    }
+                });
+            }
+        });
+    }
+
+    rebindSectionToggles() {
+        document.querySelectorAll('.section-header').forEach(header => {
+            if (!header.hasListener) {
+                header.hasListener = true;
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const section = header.closest('.api-section');
+                    if (section) {
+                        section.classList.toggle('collapsed');
+                        const content = section.querySelector('.section-content');
+                        if (content) {
+                            if (section.classList.contains('collapsed')) {
+                                content.style.display = 'none';
+                            } else {
+                                content.style.display = 'block';
+                            }
+                        }
+                    }
+                });
+            }
+        });
     }
 
     searchEndpoints(query) {
@@ -529,7 +759,6 @@ class Dashboard {
                 </div>
             `;
             
-            // Add click handlers for search results
             document.querySelectorAll('.search-result-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const path = item.dataset.path;
@@ -562,29 +791,6 @@ class Dashboard {
             { method: 'GET', path: '/server-stats', description: 'Real-time server statistics' },
             { method: 'GET', path: '/api-info', description: 'API information and documentation' }
         ];
-    }
-
-    switchPage(page) {
-        this.currentPage = page;
-        const titles = {
-            dashboard: { title: 'Dashboard Overview', subtitle: 'Real-time API Statistics & Monitoring' },
-            games: { title: 'Games API', subtitle: 'FitGirl Repacks - Search, Info & Download' },
-            anime: { title: 'Anime API', subtitle: 'Multi-source Anime API - Search, Popular, Info' },
-            download: { title: 'Download API', subtitle: 'Direct Download Links Extractor' },
-            ai: { title: 'AI API', subtitle: 'Coming Soon - AI-powered Features' },
-            movie: { title: 'Movie API', subtitle: 'Coming Soon - Movie Information' },
-            search: { title: 'Search API', subtitle: 'Coming Soon - Universal Search' },
-            stalk: { title: 'Stalk API', subtitle: 'Coming Soon - Social Media Tools' }
-        };
-        
-        const titleElem = document.getElementById('pageTitle');
-        const subtitleElem = document.getElementById('pageSubtitle');
-        
-        if (titleElem) titleElem.textContent = titles[page]?.title || 'Dashboard';
-        if (subtitleElem) subtitleElem.textContent = titles[page]?.subtitle || '';
-        
-        // Scroll to top
-        window.scrollTo(0, 0);
     }
 
     hideLoader() {
