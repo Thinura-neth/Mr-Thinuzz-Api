@@ -10,7 +10,12 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from public directory
 app.use(express.static('public'));
+
+// Also explicitly serve JS files
+app.use('/js', express.static('public'));
 
 // Auto-load all routes from routes/ folder
 const routesPath = path.join(__dirname, 'routes');
@@ -21,19 +26,6 @@ routeFiles.forEach(file => {
     const routeHandler = require(path.join(routesPath, file));
     app.use(`/${routeName}`, routeHandler);
     console.log(`✅ Loaded route: /${routeName}`);
-});
-
-// Real-time server stats endpoint
-app.get('/server-stats', (req, res) => {
-    res.json({
-        status: true,
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        cpu: os.cpus().length,
-        platform: os.platform(),
-        node_version: process.version
-    });
 });
 
 // Health check with real-time stats
@@ -49,19 +41,21 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Real-time server stats endpoint
+app.get('/server-stats', (req, res) => {
+    res.json({
+        status: true,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        cpu: os.cpus().length,
+        platform: os.platform(),
+        node_version: process.version
+    });
+});
+
 // API Info with real-time endpoints
 app.get('/api-info', (req, res) => {
-    const endpoints = [];
-    
-    routeFiles.forEach(file => {
-        const routeName = file.replace('.js', '');
-        endpoints.push({
-            route: `/${routeName}`,
-            methods: ["GET"],
-            description: getRouteDescription(routeName)
-        });
-    });
-    
     res.json({
         name: "Mr Thinuzz Free APIs",
         version: "2.0.0",
@@ -81,17 +75,18 @@ app.get('/api-info', (req, res) => {
             "GET /api-info": "This API information",
             "GET /game/fitgirl-search?q=SEARCH": "Search games",
             "GET /game/fitgirl-info?url=URL": "Get game info",
-            "GET /game/fitgirl-download?url=URL": "Extract download link"
+            "GET /game/fitgirl-download?url=URL": "Extract download link",
+            "GET /anime/search?q=TITLE": "Search anime",
+            "GET /anime/popular": "Popular anime",
+            "GET /anime/info?id=ID": "Anime info"
         }
     });
 });
 
-function getRouteDescription(route) {
-    const descriptions = {
-        'game': 'FitGirl Repacks - Search, Info & Download endpoints'
-    };
-    return descriptions[route] || 'Available endpoints';
-}
+// Serve dashboard.js explicitly
+app.get('/dashboard.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.js'));
+});
 
 // Root - serve beautiful UI
 app.get('/', (req, res) => {
