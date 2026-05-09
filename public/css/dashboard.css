@@ -1177,3 +1177,15 @@ body {
 @media (hover: none) and (pointer: coarse) {
     .nav-link,
     .stat-card,
+    .endpoint-card,
+    .copy-btn,
+    .back-btn {
+        cursor: default;
+    }
+    
+    .nav-link:active,
+    .stat-card:active,
+    .endpoint-card:active {
+        transform: scale(0.98);
+    }
+}
