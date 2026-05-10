@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DARK SHAN API - Multi API Service</title>
+    <title>Mr Thinuzz API - Multi API Service</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -15,12 +15,14 @@
             <div class="init-logo">
                 <i class="fas fa-terminal"></i>
             </div>
-            <div class="init-title">DARK SHAN <span>API</span></div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="initProgress"></div>
+            <div class="init-title">Mr Thinuzz <span>API</span></div>
+            <div class="progress-container">
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-fill" id="initProgress"></div>
+                </div>
+                <div class="progress-percent" id="initPercent">0%</div>
+                <div class="progress-status" id="initStatus">Initializing...</div>
             </div>
-            <div class="init-percent" id="initPercent">0%</div>
-            <div class="init-status" id="initStatus">Initializing...</div>
         </div>
     </div>
 
@@ -29,7 +31,8 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-terminal"></i>
-                <h1>DARK SHAN <span>API</span></h1>
+                <h1>Mr Thinuzz <span>API</span></h1>
+                <small>v3.1</small>
             </div>
             <nav>
                 <a href="#dashboard" class="active">Dashboard</a>
@@ -37,9 +40,9 @@
                 <a href="#demo">Demo</a>
                 <a href="#docs">Docs</a>
             </nav>
-            <div class="menu-btn" onclick="toggleMobileMenu()">
+            <button class="menu-btn" onclick="toggleMobileMenu()">
                 <i class="fas fa-bars"></i>
-            </div>
+            </button>
         </div>
     </header>
 
@@ -47,28 +50,37 @@
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <i class="fas fa-compass"></i>
-                <span>Navigation</span>
+            <div class="sidebar-user">
+                <div class="user-avatar">
+                    <i class="fas fa-user-astronaut"></i>
+                </div>
+                <div class="user-info">
+                    <h4>Mr Thinuzz</h4>
+                    <p>API Developer</p>
+                </div>
             </div>
             <nav class="sidebar-nav">
-                <a href="#dashboard" class="sidebar-item active" onclick="closeSidebarOnMobile()">
+                <div class="sidebar-section-title">MAIN</div>
+                <a href="#dashboard" class="sidebar-item active" data-section="dashboard">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#apis" class="sidebar-item" onclick="closeSidebarOnMobile()">
+                <a href="#apis" class="sidebar-item" data-section="apis">
                     <i class="fas fa-plug"></i>
                     <span>APIs</span>
                 </a>
-                <a href="#demo" class="sidebar-item" onclick="closeSidebarOnMobile()">
+                <a href="#demo" class="sidebar-item" data-section="demo">
                     <i class="fas fa-play-circle"></i>
                     <span>Live Demo</span>
                 </a>
-                <a href="#docs" class="sidebar-item" onclick="closeSidebarOnMobile()">
+                <a href="#docs" class="sidebar-item" data-section="docs">
                     <i class="fas fa-book"></i>
                     <span>Documentation</span>
                 </a>
+                
                 <div class="sidebar-divider"></div>
+                
+                <div class="sidebar-section-title">TOOLS</div>
                 <a href="/health" class="sidebar-item" target="_blank">
                     <i class="fas fa-heartbeat"></i>
                     <span>Health Check</span>
@@ -81,19 +93,39 @@
                     <i class="fas fa-info-circle"></i>
                     <span>API Info</span>
                 </a>
+                
+                <div class="sidebar-divider"></div>
+                
+                <div class="sidebar-section-title">RESOURCES</div>
+                <a href="/all-apis/cards" class="sidebar-item" target="_blank">
+                    <i class="fas fa-id-card"></i>
+                    <span>Cards API</span>
+                    <span class="sidebar-badge">JSON</span>
+                </a>
+                <a href="/all-apis" class="sidebar-item" target="_blank">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Aggregator</span>
+                    <span class="sidebar-badge">JSON</span>
+                </a>
             </nav>
+            <div class="sidebar-footer">
+                <a href="#" class="sidebar-item" onclick="toggleTheme()">
+                    <i class="fas fa-moon"></i>
+                    <span>Dark Mode</span>
+                </a>
+            </div>
         </aside>
 
         <!-- Sidebar Toggle Button -->
-        <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+        <button class="sidebar-toggle-btn" onclick="toggleSidebar()" id="sidebarToggleBtn">
             <i class="fas fa-chevron-left" id="toggleIcon"></i>
         </button>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" id="mainContent">
             <!-- Dashboard Section -->
-            <section id="dashboard">
-                <div class="dashboard-stats" id="dashboardStats">
+            <section id="dashboard" class="content-section active">
+                <div class="dashboard-stats">
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-cube"></i></div>
                         <div class="stat-value" id="statApiCount">--</div>
@@ -117,25 +149,26 @@
                 </div>
 
                 <!-- Changelog -->
-                <div class="changelog-section" id="changelog">
+                <div class="changelog-section">
                     <div class="changelog-header">
                         <i class="fas fa-history"></i>
                         <h3>Changelog</h3>
                     </div>
                     <div class="changelog-item">
                         <div class="changelog-version">v3.1.0</div>
+                        <div class="changelog-date">2024-01-15</div>
                         <div class="changelog-content">
-                            Enhanced dashboard UI with DARK SHAN style sidebar
+                            Enhanced dashboard UI with vertical sidebar
                             <ul>
                                 <li>Added collapsible sidebar navigation</li>
                                 <li>Improved responsive design</li>
                                 <li>Auto-generated API cards from config</li>
                             </ul>
                         </div>
-                        <div class="changelog-date">2024-01-15</div>
                     </div>
                     <div class="changelog-item">
                         <div class="changelog-version">v3.0.0</div>
+                        <div class="changelog-date">2024-01-10</div>
                         <div class="changelog-content">
                             Major update with new features
                             <ul>
@@ -144,7 +177,6 @@
                                 <li>Added Anime API (Jikan + AniList)</li>
                             </ul>
                         </div>
-                        <div class="changelog-date">2024-01-10</div>
                     </div>
                 </div>
 
@@ -158,7 +190,7 @@
             </section>
 
             <!-- API Demo Section -->
-            <section id="demo" style="display: none;">
+            <section id="demo" class="content-section">
                 <div class="demo-container">
                     <div class="demo-controls">
                         <select id="apiSelect" class="demo-select">
@@ -168,20 +200,24 @@
                             <option value="">Select endpoint</option>
                         </select>
                         <div id="paramInput" class="param-input">
-                            <input type="text" placeholder="Parameters...">
+                            <input type="text" placeholder="No parameters needed" disabled>
                         </div>
-                        <button id="testBtn" class="btn btn-primary">
-                            <i class="fas fa-play"></i> Test
+                        <button id="testBtn" class="btn-primary">
+                            <i class="fas fa-play"></i> Test API
                         </button>
                     </div>
                     <div class="demo-response">
-                        <pre id="responseOutput"><code>// Click Test to see response</code></pre>
+                        <div class="response-header">
+                            <span>Response</span>
+                            <i class="fas fa-copy" onclick="copyResponse()" style="cursor: pointer;"></i>
+                        </div>
+                        <pre id="responseOutput"><code>// Select an API and endpoint, then click Test API</code></pre>
                     </div>
                 </div>
             </section>
 
             <!-- Documentation Section -->
-            <section id="docs" style="display: none;">
+            <section id="docs" class="content-section">
                 <div id="docsContainer">
                     <div class="loading-spinner">
                         <i class="fas fa-spinner fa-spin"></i>
