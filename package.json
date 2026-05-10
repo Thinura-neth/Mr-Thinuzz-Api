@@ -1,7 +1,7 @@
 {
   "name": "mr-thinuzz-api",
   "version": "2.0.0",
-  "description": "Mr Thinuzz Free APIs - FitGirl Repacks Scraper | Search, Info, Download | No API Key",
+  "description": "Mr Thinuzz Free APIs - FitGirl Repacks & CineSubz Scraper with Puppeteer Stealth",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,12 +13,25 @@
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.1.5",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "puppeteer": "^21.6.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["mr-thinuzz", "fitgirl", "repacks", "api", "scraper", "free-api", "game-search"],
+  "keywords": [
+    "mr-thinuzz",
+    "fitgirl",
+    "repacks",
+    "api",
+    "scraper",
+    "free-api",
+    "game-search",
+    "puppeteer",
+    "stealth"
+  ],
   "author": "Mr Thinuzz",
   "license": "MIT"
 }
