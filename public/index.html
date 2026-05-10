@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Header (same as before) -->
+    <!-- Header -->
     <header>
         <div class="container">
             <div class="header-content">
@@ -23,14 +23,14 @@
                     <a href="#demo">Demo</a>
                     <a href="#docs">Docs</a>
                 </nav>
-                <div class="menu-btn">
+                <div class="menu-btn" onclick="toggleMobileMenu()">
                     <i class="fas fa-bars"></i>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Hero Section (same) -->
+    <!-- Hero Section -->
     <section id="home" class="hero">
         <div class="container">
             <div class="hero-content">
@@ -92,7 +92,7 @@
         </div>
     </section>
 
-    <!-- Auto-Generated API Cards Section -->
+    <!-- API Cards Section -->
     <section id="apis" class="apis">
         <div class="container">
             <div class="section-header">
@@ -108,7 +108,7 @@
         </div>
     </section>
 
-    <!-- Live Demo Section (updated) -->
+    <!-- Live Demo Section -->
     <section id="demo" class="demo">
         <div class="container">
             <div class="section-header">
@@ -141,18 +141,45 @@
         </div>
     </section>
 
-    <!-- Documentation Section (auto-generated) -->
+    <!-- Documentation Section with Sidebar -->
     <section id="docs" class="docs">
         <div class="container">
             <div class="section-header">
                 <h2>API <span>Documentation</span></h2>
-                <p>Auto-generated from configuration</p>
+                <p>Complete API reference with sidebar navigation</p>
             </div>
-            <div id="docsContainer" class="docs-content">
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading documentation...</p>
-                </div>
+            
+            <div class="docs-wrapper">
+                <!-- Sidebar Navigation -->
+                <aside class="docs-sidebar" id="docsSidebar">
+                    <div class="sidebar-header">
+                        <i class="fas fa-book"></i>
+                        <span>API Documentation</span>
+                        <button class="close-sidebar" onclick="toggleSidebar()">×</button>
+                    </div>
+                    <div class="sidebar-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="sidebarSearch" placeholder="Search endpoints..." onkeyup="searchDocs()">
+                    </div>
+                    <nav class="sidebar-nav" id="sidebarNav">
+                        <div class="loading-spinner small">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                    </nav>
+                </aside>
+
+                <!-- Main Content -->
+                <main class="docs-content">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i> Documentation Menu
+                    </button>
+                    <div id="docsContainer" class="docs-inner">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading documentation...</p>
+                        </div>
+                    </div>
+                </main>
             </div>
         </div>
     </section>
@@ -180,7 +207,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Mr Thinuzz API. Auto Card Generation System</p>
+                <p>&copy; 2026 Mr Thinuzz API. Auto Card Generation System</p>
                 <p>Built with <i class="fas fa-heart"></i> for developers</p>
             </div>
         </div>
