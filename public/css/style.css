@@ -778,3 +778,220 @@ header {
     background: var(--primary);
     border-radius: 5px;
 }
+/* ============ ADDITIONAL FIXES ============ */
+
+/* Content Sections */
+.content-section {
+    display: none;
+}
+
+.content-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toast Animation */
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Response Header */
+.response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.response-header i {
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.response-header i:hover {
+    color: var(--primary);
+}
+
+/* Params List */
+.params-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0.5rem 0 1rem 0;
+}
+
+.params-list li {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.params-list code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+.required {
+    color: var(--warning);
+    font-size: 0.7rem;
+}
+
+.optional {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
+.required-star {
+    color: var(--error);
+}
+
+/* Param Field */
+.param-field {
+    flex: 1;
+    min-width: 150px;
+}
+
+.param-field label {
+    display: block;
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+}
+
+.param-field input {
+    width: 100%;
+    background: var(--darker-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+}
+
+.param-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Example Code */
+.example-code {
+    display: inline-block;
+    background: var(--darker-bg);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    margin: 0.5rem 0;
+    word-break: break-all;
+}
+
+/* Toggle Docs Icon */
+.toggle-docs-icon {
+    transition: transform 0.3s ease;
+    color: var(--text-secondary);
+}
+
+/* Error Message */
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    border-radius: 12px;
+    color: var(--error);
+}
+
+.error-message i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* No APIs */
+.no-apis, .no-docs {
+    text-align: center;
+    padding: 3rem;
+    background: var(--card-bg);
+    border-radius: 16px;
+    color: var(--text-secondary);
+}
+
+/* Responsive Fixes */
+@media (max-width: 768px) {
+    .param-group {
+        flex-direction: column;
+    }
+    
+    .param-field {
+        min-width: auto;
+    }
+    
+    .endpoint-header {
+        flex-wrap: wrap;
+    }
+    
+    .endpoint-path {
+        width: 100%;
+        word-break: break-all;
+    }
+    
+    .changelog-item {
+        flex-direction: column;
+    }
+    
+    .changelog-date {
+        margin-top: 4px;
+    }
+    
+    .sidebar-footer {
+        display: none;
+    }
+}
+
+/* Light Theme (Optional) */
+body.light-theme {
+    --dark-bg: #f3f4f6;
+    --darker-bg: #ffffff;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --sidebar-bg: #ffffff;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --border-color: rgba(139, 92, 246, 0.2);
+}
+
+/* Scroll to Top Button */
+.scroll-top-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+    transition: all 0.3s;
+}
+
+.scroll-top-btn.show {
+    display: flex;
+}
+
+.scroll-top-btn:hover {
+    transform: translateY(-3px);
+    background: var(--secondary);
+}
