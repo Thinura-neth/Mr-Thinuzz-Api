@@ -39,7 +39,7 @@
         {
           "name": "Movie Download",
           "method": "GET",
-          "path": "/download",
+          "path": "/extract",
           "params": ["url"],
           "required_params": ["url"],
           "example": "/movie/extract?url=https://cinesubz.net/zt-links/...",
