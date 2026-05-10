@@ -1,5 +1,6 @@
 // Global variables
 let apiCardsData = [];
+let currentSidebarSection = null;
 
 // ============ LOAD API CARDS FROM SERVER ============
 
@@ -12,9 +13,11 @@ async function loadAPICards() {
             apiCardsData = data.cards;
             renderAPICards(data.cards);
             renderDocumentation(data.cards);
+            renderSidebar(data.cards);
             updateSelectors(data.cards);
             updateStats(data.cards);
             updateFooterLinks(data.cards);
+            setupBackToTop();
         } else {
             showError('Failed to load API cards');
         }
@@ -22,6 +25,91 @@ async function loadAPICards() {
         console.error('Error loading API cards:', error);
         showError('Error loading API cards: ' + error.message);
     }
+}
+
+// ============ RENDER SIDEBAR ============
+
+function renderSidebar(cards) {
+    const sidebarNav = document.getElementById('sidebarNav');
+    
+    if (!cards || cards.length === 0) {
+        sidebarNav.innerHTML = '<div class="no-apis" style="padding: 1rem;">No APIs configured</div>';
+        return;
+    }
+    
+    sidebarNav.innerHTML = cards.map(card => `
+        <div class="sidebar-section" data-section-id="${card.id}" data-section-name="${card.name.toLowerCase()}">
+            <div class="sidebar-section-header" onclick="toggleSidebarSection('${card.id}')">
+                <i class="fas ${card.icon}" style="color: ${card.color}"></i>
+                <span class="section-name">${card.name}</span>
+                <span class="section-badge">${card.endpoints.length}</span>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+            <div class="sidebar-endpoints">
+                ${card.endpoints.map(ep => `
+                    <div class="sidebar-endpoint" onclick="scrollToEndpoint('${card.id}', '${ep.name}')">
+                        <span class="method-badge ${ep.method.toLowerCase()}">${ep.method}</span>
+                        <span class="endpoint-name">${ep.name}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleSidebarSection(sectionId) {
+    const section = document.querySelector(`.sidebar-section[data-section-id="${sectionId}"]`);
+    if (section) {
+        section.classList.toggle('collapsed');
+    }
+}
+
+function scrollToEndpoint(apiId, endpointName) {
+    // Close sidebar on mobile
+    if (window.innerWidth <= 968) {
+        toggleSidebar();
+    }
+    
+    // Find and scroll to endpoint
+    const element = document.getElementById(`endpoint-${apiId}-${endpointName.replace(/\s+/g, '-')}`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.classList.add('highlight');
+        setTimeout(() => element.classList.remove('highlight'), 1000);
+        
+        // Update active states
+        document.querySelectorAll('.sidebar-endpoint').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.sidebar-section-header').forEach(el => el.classList.remove('active'));
+        
+        const clickedEndpoint = event?.target?.closest('.sidebar-endpoint');
+        if (clickedEndpoint) clickedEndpoint.classList.add('active');
+        
+        const section = document.querySelector(`.sidebar-section[data-section-id="${apiId}"] .sidebar-section-header`);
+        if (section) section.classList.add('active');
+    }
+}
+
+function searchDocs() {
+    const searchTerm = document.getElementById('sidebarSearch').value.toLowerCase();
+    const sections = document.querySelectorAll('.sidebar-section');
+    
+    sections.forEach(section => {
+        const sectionName = section.dataset.sectionName || '';
+        const endpoints = section.querySelectorAll('.sidebar-endpoint');
+        let hasMatch = false;
+        
+        endpoints.forEach(endpoint => {
+            const endpointName = endpoint.querySelector('.endpoint-name')?.innerText.toLowerCase() || '';
+            const matches = endpointName.includes(searchTerm) || sectionName.includes(searchTerm);
+            endpoint.style.display = matches ? 'flex' : 'none';
+            if (matches) hasMatch = true;
+        });
+        
+        section.style.display = hasMatch || searchTerm === '' ? 'block' : 'none';
+        if (hasMatch && searchTerm !== '') {
+            section.classList.remove('collapsed');
+        }
+    });
 }
 
 // ============ RENDER API CARDS ============
@@ -80,38 +168,108 @@ function renderDocumentation(cards) {
     }
     
     container.innerHTML = cards.map(card => `
-        <div class="doc-section">
+        <div id="doc-section-${card.id}" class="doc-section">
             <h3>
                 <i class="fas ${card.icon}" style="color: ${card.color}"></i>
                 ${card.name}
-                <small style="color: ${card.color}; font-size: 0.8rem;">${card.base_path}</small>
+                <small>${card.base_path}</small>
             </h3>
             ${card.endpoints.map(ep => `
-                <div class="endpoint">
-                    <div class="endpoint-header">
+                <div id="endpoint-${card.id}-${ep.name.replace(/\s+/g, '-')}" class="endpoint-card">
+                    <div class="endpoint-card-header" onclick="toggleEndpointCard(this)">
                         <span class="method ${ep.method.toLowerCase()}">${ep.method}</span>
-                        <span class="path">${card.base_path}${ep.path}</span>
-                        <button class="test-endpoint-btn" onclick="testEndpoint('${card.id}', '${ep.name}')">
-                            <i class="fas fa-play"></i> Test
+                        <code class="path">${card.base_path}${ep.path}</code>
+                        <button class="copy-endpoint" onclick="event.stopPropagation(); copyEndpoint('${card.base_path}${ep.path}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="toggle-details">
+                            <i class="fas fa-chevron-down"></i>
                         </button>
                     </div>
-                    <div class="endpoint-desc">${ep.description || 'No description available'}</div>
-                    ${ep.params && ep.params.length > 0 ? `
-                        <div class="params">
-                            <strong>Parameters:</strong>
-                            ${ep.params.map(p => `
-                                <code class="${ep.required_params?.includes(p) ? 'required' : ''}">${p}${ep.required_params?.includes(p) ? '*' : ''}</code>
-                            `).join('')}
+                    <div class="endpoint-card-body">
+                        <div class="endpoint-description">
+                            ${ep.description || 'No description available'}
                         </div>
-                    ` : ''}
-                    <div class="example">
-                        <strong>Example:</strong>
-                        <code>GET ${ep.example || `${card.base_path}${ep.path}`}</code>
+                        
+                        ${ep.params && ep.params.length > 0 ? `
+                            <div class="endpoint-params">
+                                <h4>📋 Parameters</h4>
+                                <table class="params-table">
+                                    <thead>
+                                        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${ep.params.map(p => `
+                                            <tr>
+                                                <td><code>${p}</code></td>
+                                                <td>string</td>
+                                                <td>${ep.required_params?.includes(p) ? '<span class="required">Yes</span>' : 'No'}</td>
+                                                <td>${p} parameter</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="endpoint-example">
+                            <h4>🔗 Example Request</h4>
+                            <code>GET ${ep.example || `${card.base_path}${ep.path}`}</code>
+                        </div>
+                        
+                        <div class="endpoint-response">
+                            <h4>📤 Example Response</h4>
+                            <pre><code>{
+  "status": true,
+  "data": { ... }
+}</code></pre>
+                        </div>
+                        
+                        <button class="test-this-btn" onclick="testThisEndpoint('${card.id}', '${ep.name}')">
+                            <i class="fas fa-play"></i> Test This Endpoint
+                        </button>
                     </div>
                 </div>
             `).join('')}
         </div>
     `).join('');
+}
+
+function toggleEndpointCard(header) {
+    const card = header.closest('.endpoint-card');
+    card.classList.toggle('expanded');
+}
+
+function copyEndpoint(endpoint) {
+    navigator.clipboard.writeText(endpoint);
+    showToast('Endpoint copied to clipboard!');
+}
+
+async function testThisEndpoint(apiId, endpointName) {
+    const card = apiCardsData.find(c => c.id === apiId);
+    if (!card) return;
+    
+    const endpoint = card.endpoints.find(ep => ep.name === endpointName);
+    if (!endpoint) return;
+    
+    // Switch to demo tab
+    document.querySelector('#demo').scrollIntoView({ behavior: 'smooth' });
+    
+    // Set API and endpoint in demo
+    const apiSelect = document.getElementById('apiSelect');
+    const endpointSelect = document.getElementById('endpointSelect');
+    
+    apiSelect.value = apiId;
+    apiSelect.dispatchEvent(new Event('change'));
+    
+    setTimeout(() => {
+        endpointSelect.value = endpointName;
+        endpointSelect.dispatchEvent(new Event('change'));
+        
+        setTimeout(() => {
+            document.getElementById('testBtn').click();
+        }, 100);
+    }, 100);
 }
 
 // ============ UPDATE SELECTORS ============
@@ -125,7 +283,7 @@ function updateSelectors(cards) {
     }
     
     apiSelect.innerHTML = '<option value="">Select API</option>' + 
-        cards.map(card => `<option value="${card.id}">${card.icon ? '🎮' : '📁'} ${card.name}</option>`).join('');
+        cards.map(card => `<option value="${card.id}">🎮 ${card.name}</option>`).join('');
     
     // Add change event
     apiSelect.onchange = () => {
@@ -267,6 +425,34 @@ async function testAPIDemo() {
     await testEndpoint(selectedApiId, selectedEndpointName);
 }
 
+// ============ SIDEBAR FUNCTIONS ============
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('docsSidebar');
+    sidebar.classList.toggle('open');
+}
+
+function setupBackToTop() {
+    const btn = document.createElement('button');
+    btn.className = 'back-to-top';
+    btn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+    btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.appendChild(btn);
+    
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            btn.classList.add('show');
+        } else {
+            btn.classList.remove('show');
+        }
+    });
+}
+
+function toggleMobileMenu() {
+    const nav = document.querySelector('nav');
+    nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+}
+
 // ============ HELPER FUNCTIONS ============
 
 function copyCode() {
@@ -314,117 +500,6 @@ function showError(message) {
     `;
 }
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    .param-group {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    
-    .param-field {
-        flex: 1;
-        min-width: 150px;
-    }
-    
-    .param-field label {
-        display: block;
-        font-size: 0.75rem;
-        margin-bottom: 5px;
-        color: #888;
-    }
-    
-    .param-field input {
-        width: 100%;
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        color: white;
-        padding: 0.5rem;
-        border-radius: 6px;
-    }
-    
-    .required-star {
-        color: #ef4444;
-    }
-    
-    .test-endpoint-btn {
-        background: rgba(99, 102, 241, 0.2);
-        border: none;
-        color: #6366f1;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.75rem;
-        margin-left: auto;
-    }
-    
-    .test-endpoint-btn:hover {
-        background: rgba(99, 102, 241, 0.4);
-    }
-    
-    .params {
-        margin: 10px 0;
-        font-size: 0.875rem;
-    }
-    
-    .params code {
-        background: rgba(0,0,0,0.3);
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-right: 5px;
-    }
-    
-    .params code.required {
-        color: #f59e0b;
-        border: 1px solid #f59e0b;
-    }
-    
-    .method.post { background: #f59e0b; }
-    .method.put { background: #3b82f6; }
-    .method.delete { background: #ef4444; }
-    
-    .loading-spinner {
-        text-align: center;
-        padding: 40px;
-    }
-    
-    .loading-spinner i {
-        font-size: 40px;
-        color: #6366f1;
-        margin-bottom: 10px;
-    }
-    
-    .no-apis, .error-message {
-        text-align: center;
-        padding: 40px;
-        background: rgba(0,0,0,0.3);
-        border-radius: 12px;
-    }
-    
-    .no-apis i, .error-message i {
-        font-size: 48px;
-        color: #f59e0b;
-        margin-bottom: 16px;
-    }
-    
-    .no-apis pre {
-        background: #1e1e1e;
-        padding: 16px;
-        border-radius: 8px;
-        margin-top: 20px;
-        text-align: left;
-        overflow-x: auto;
-    }
-`;
-
-document.head.appendChild(style);
-
 // ============ INITIALIZATION ============
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -436,7 +511,19 @@ document.addEventListener('DOMContentLoaded', () => {
         testBtn.onclick = testAPIDemo;
     }
     
-    // Smooth scrolling
+    // Close sidebar when clicking outside (mobile)
+    document.addEventListener('click', (e) => {
+        const sidebar = document.getElementById('docsSidebar');
+        const toggle = document.querySelector('.sidebar-toggle');
+        
+        if (window.innerWidth <= 968 && sidebar && sidebar.classList.contains('open')) {
+            if (!sidebar.contains(e.target) && !toggle?.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        }
+    });
+    
+    // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function(e) {
             e.preventDefault();
@@ -446,4 +533,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+});
+
+// Keyboard shortcut to toggle sidebar (Ctrl + D)
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        toggleSidebar();
+    }
 });
