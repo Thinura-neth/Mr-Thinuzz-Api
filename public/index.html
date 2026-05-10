@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Header -->
+    <!-- Header (same as before) -->
     <header>
         <div class="container">
             <div class="header-content">
@@ -19,9 +19,8 @@
                 </div>
                 <nav>
                     <a href="#home" class="active">Home</a>
-                    <a href="#movie">Movies</a>
-                    <a href="#game">Games</a>
-                    <a href="#anime">Anime</a>
+                    <a href="#apis">APIs</a>
+                    <a href="#demo">Demo</a>
                     <a href="#docs">Docs</a>
                 </nav>
                 <div class="menu-btn">
@@ -31,135 +30,101 @@
         </div>
     </header>
 
-    <!-- Hero Section -->
+    <!-- Hero Section (same) -->
     <section id="home" class="hero">
         <div class="container">
             <div class="hero-content">
                 <div class="hero-text">
-                    <span class="badge">🔥 Multi API Service</span>
-                    <h2>Your Ultimate <span>API Hub</span></h2>
-                    <p>Access Movies, Games, Anime and more through a single powerful API. Built with Express.js and real-time scraping technology.</p>
+                    <span class="badge">🔥 Auto-Generated API Cards</span>
+                    <h2>Dynamic <span>API Cards</span></h2>
+                    <p>Add new endpoints to route-config.json and cards auto-generate! No frontend code needed.</p>
                     <div class="hero-buttons">
-                        <a href="#docs" class="btn btn-primary">
-                            <i class="fas fa-book"></i> Documentation
+                        <a href="#apis" class="btn btn-primary">
+                            <i class="fas fa-layer-group"></i> View APIs
                         </a>
                         <a href="#demo" class="btn btn-secondary">
                             <i class="fas fa-play"></i> Live Demo
                         </a>
                     </div>
-                    <div class="stats">
+                    <div class="stats" id="stats">
                         <div class="stat">
-                            <i class="fas fa-film"></i>
-                            <span>3+</span>
-                            <p>Categories</p>
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span id="apiCount">Loading...</span>
+                            <p>APIs Available</p>
                         </div>
                         <div class="stat">
                             <i class="fas fa-code-branch"></i>
-                            <span>15+</span>
+                            <span id="endpointCount">Loading...</span>
                             <p>Endpoints</p>
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-clock"></i>
-                            <span>24/7</span>
-                            <p>Uptime</p>
                         </div>
                     </div>
                 </div>
                 <div class="hero-code">
                     <div class="code-header">
                         <i class="fas fa-code"></i>
-                        <span>Quick Start</span>
+                        <span>How to Add New API</span>
                         <i class="fas fa-copy copy-btn" onclick="copyCode()"></i>
                     </div>
-                    <pre id="quickCode"><code>// Search Movies
-fetch('/movie/search?q=oppenheimer')
-  .then(res => res.json())
-  .then(data => console.log(data));
+                    <pre id="quickCode"><code>// 1. Add to route-config.json
+{
+  "newapi": {
+    "name": "New API",
+    "icon": "fa-star",
+    "color": "#ff6b6b",
+    "base_path": "/newapi",
+    "enabled": true,
+    "endpoints": [
+      {
+        "name": "Get Data",
+        "method": "GET",
+        "path": "/data",
+        "params": ["query"],
+        "required_params": ["query"],
+        "example": "/newapi/data?query=test"
+      }
+    ]
+  }
+}
 
-// Search Games  
-fetch('/game/fitgirl-search?q=cyberpunk')
-  .then(res => res.json())
-  .then(data => console.log(data));
-
-// Search Anime
-fetch('/anime/search?q=naruto')
-  .then(res => res.json())
-  .then(data => console.log(data));</code></pre>
+// 2. Card auto generates! 🎉</code></pre>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- API Categories -->
+    <!-- Auto-Generated API Cards Section -->
     <section id="apis" class="apis">
         <div class="container">
             <div class="section-header">
-                <h2>API <span>Categories</span></h2>
-                <p>Choose from our comprehensive API endpoints</p>
+                <h2>Available <span>APIs</span></h2>
+                <p>Auto-generated cards from route-config.json</p>
             </div>
-            <div class="api-grid">
-                <div class="api-card" onclick="showCategory('movie')">
-                    <div class="api-icon">
-                        <i class="fas fa-film"></i>
-                    </div>
-                    <h3>Movies API</h3>
-                    <p>Search movies, get details, download links and more from CineSubz</p>
-                    <div class="api-tags">
-                        <span>🔍 Search</span>
-                        <span>📥 Download</span>
-                        <span>🎬 Recent</span>
-                    </div>
-                    <div class="api-link">Explore →</div>
-                </div>
-                <div class="api-card" onclick="showCategory('game')">
-                    <div class="api-icon">
-                        <i class="fas fa-gamepad"></i>
-                    </div>
-                    <h3>Games API</h3>
-                    <p>FitGirl repacks search, game info, and direct download extraction</p>
-                    <div class="api-tags">
-                        <span>🎮 Search</span>
-                        <span>📦 Repacks</span>
-                        <span>⚡ Direct DL</span>
-                    </div>
-                    <div class="api-link">Explore →</div>
-                </div>
-                <div class="api-card" onclick="showCategory('anime')">
-                    <div class="api-icon">
-                        <i class="fas fa-dragon"></i>
-                    </div>
-                    <h3>Anime API</h3>
-                    <p>Multi-source anime search with AniList and Jikan API integration</p>
-                    <div class="api-tags">
-                        <span>🇯🇵 Search</span>
-                        <span>📊 Popular</span>
-                        <span>ℹ️ Info</span>
-                    </div>
-                    <div class="api-link">Explore →</div>
+            <div id="apiCardsContainer" class="api-grid">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading API cards...</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Live Demo Section -->
+    <!-- Live Demo Section (updated) -->
     <section id="demo" class="demo">
         <div class="container">
             <div class="section-header">
                 <h2>Live <span>API Demo</span></h2>
-                <p>Test our APIs in real-time</p>
+                <p>Test any API endpoint</p>
             </div>
             <div class="demo-container">
                 <div class="demo-controls">
                     <select id="apiSelect" class="demo-select">
-                        <option value="movie">🎬 Movie API</option>
-                        <option value="game">🎮 Game API</option>
-                        <option value="anime">🐉 Anime API</option>
+                        <option value="">Loading APIs...</option>
                     </select>
                     <select id="endpointSelect" class="demo-select">
-                        <!-- Dynamic options -->
+                        <option value="">Select endpoint</option>
                     </select>
                     <div id="paramInput" class="param-input">
-                        <input type="text" id="paramValue" placeholder="Search term or URL...">
+                        <input type="text" id="paramValue" placeholder="Enter parameters...">
                     </div>
                     <button id="testBtn" class="btn btn-primary">
                         <i class="fas fa-play"></i> Test API
@@ -170,145 +135,23 @@ fetch('/anime/search?q=naruto')
                         <span>Response</span>
                         <i class="fas fa-copy" onclick="copyResponse()"></i>
                     </div>
-                    <pre id="responseOutput"><code>// Click "Test API" to see response...</code></pre>
+                    <pre id="responseOutput"><code>// Select an API and click Test...</code></pre>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Documentation -->
+    <!-- Documentation Section (auto-generated) -->
     <section id="docs" class="docs">
         <div class="container">
             <div class="section-header">
                 <h2>API <span>Documentation</span></h2>
-                <p>Complete reference for all endpoints</p>
+                <p>Auto-generated from configuration</p>
             </div>
-            <div class="docs-content">
-                <!-- Movies Docs -->
-                <div class="doc-section">
-                    <h3><i class="fas fa-film"></i> Movies API</h3>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/movie/search?q={query}</span>
-                        </div>
-                        <div class="endpoint-desc">Search movies on CineSubz</div>
-                        <div class="example">
-                            <strong>Example:</strong>
-                            <code>GET /movie/search?q=oppenheimer</code>
-                        </div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/movie/info?url={movie_url}</span>
-                        </div>
-                        <div class="endpoint-desc">Get complete movie details with download links</div>
-                        <div class="example">
-                            <strong>Example:</strong>
-                            <code>GET /movie/info?url=https://cinesubz.net/movies/oppenheimer-2023/</code>
-                        </div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/movie/recent</span>
-                        </div>
-                        <div class="endpoint-desc">Get recently added movies</div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/movie/popular</span>
-                        </div>
-                        <div class="endpoint-desc">Get popular/trending movies</div>
-                    </div>
-                </div>
-
-                <!-- Games Docs -->
-                <div class="doc-section">
-                    <h3><i class="fas fa-gamepad"></i> Games API</h3>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/game/fitgirl-search?q={query}</span>
-                        </div>
-                        <div class="endpoint-desc">Search games on FitGirl Repacks</div>
-                        <div class="example">
-                            <strong>Example:</strong>
-                            <code>GET /game/fitgirl-search?q=cyberpunk</code>
-                        </div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/game/fitgirl-info?url={game_url}</span>
-                        </div>
-                        <div class="endpoint-desc">Get complete game info with repack features and download links</div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/game/fitgirl-download?url={fuckingfast_url}</span>
-                        </div>
-                        <div class="endpoint-desc">Extract direct download link from fuckingfast.co</div>
-                    </div>
-                </div>
-
-                <!-- Anime Docs -->
-                <div class="doc-section">
-                    <h3><i class="fas fa-dragon"></i> Anime API</h3>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/anime/search?q={query}</span>
-                        </div>
-                        <div class="endpoint-desc">Multi-source anime search (AniList + Jikan)</div>
-                        <div class="example">
-                            <strong>Example:</strong>
-                            <code>GET /anime/search?q=naruto</code>
-                        </div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/anime/popular</span>
-                        </div>
-                        <div class="endpoint-desc">Get top 20 popular anime</div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/anime/info?id={anime_id}</span>
-                        </div>
-                        <div class="endpoint-desc">Get detailed anime information by MAL ID</div>
-                    </div>
-                </div>
-
-                <!-- Aggregator Docs -->
-                <div class="doc-section">
-                    <h3><i class="fas fa-layer-group"></i> All APIs Aggregator</h3>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/all-apis</span>
-                        </div>
-                        <div class="endpoint-desc">Get all API data in one response</div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/all-apis?section={section}</span>
-                        </div>
-                        <div class="endpoint-desc">Get specific section (game/movie/anime)</div>
-                    </div>
-                    <div class="endpoint">
-                        <div class="endpoint-header">
-                            <span class="method get">GET</span>
-                            <span class="path">/all-apis/movie?action=search&q={query}</span>
-                        </div>
-                        <div class="endpoint-desc">Search movies through aggregator</div>
-                    </div>
+            <div id="docsContainer" class="docs-content">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading documentation...</p>
                 </div>
             </div>
         </div>
@@ -321,25 +164,23 @@ fetch('/anime/search?q=naruto')
                 <div class="footer-logo">
                     <i class="fas fa-terminal"></i>
                     <h3>Mr Thinuzz <span>API</span></h3>
-                    <p>Your ultimate API hub for Movies, Games, and Anime</p>
+                    <p>Auto-generated API cards system</p>
                 </div>
                 <div class="footer-links">
                     <div class="link-group">
                         <h4>APIs</h4>
-                        <a href="#movie">Movies</a>
-                        <a href="#game">Games</a>
-                        <a href="#anime">Anime</a>
+                        <div id="footerApiLinks"></div>
                     </div>
                     <div class="link-group">
                         <h4>Resources</h4>
                         <a href="#docs">Documentation</a>
                         <a href="#demo">Live Demo</a>
-                        <a href="#">Status</a>
+                        <a href="/all-apis/cards">Cards API</a>
                     </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Mr Thinuzz API. All rights reserved.</p>
+                <p>&copy; 2024 Mr Thinuzz API. Auto Card Generation System</p>
                 <p>Built with <i class="fas fa-heart"></i> for developers</p>
             </div>
         </div>
