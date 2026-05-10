@@ -34,7 +34,7 @@ const progressInterval = setInterval(() => {
 
 // ============ GLOBAL VARIABLES ============
 let apiCardsData = [];
-let currentSection = 'dashboard';
+let currentTab = 'dashboard';
 
 // ============ LOAD STATS FROM SERVER ============
 async function loadStats() {
@@ -66,6 +66,7 @@ async function loadAPICards() {
             if (endpointCountEl) endpointCountEl.textContent = totalEndpoints;
             
             renderAPICards(data.cards);
+            renderAPIsTab(data.cards);
             renderDocumentation(data.cards);
             updateSelectors(data.cards);
         } else {
@@ -86,14 +87,41 @@ function renderAPICards(cards) {
         return;
     }
     
-    container.innerHTML = cards.map(card => `
-        <div class="api-card" onclick="selectAPI('${card.id}')">
+    container.innerHTML = cards.slice(0, 3).map(card => `
+        <div class="api-card" onclick="switchToTabAndSelectAPI('demo', '${card.id}')">
             <div class="api-icon">
                 <i class="fas ${card.icon}" style="color: ${card.color}"></i>
             </div>
             <h3>${escapeHtml(card.name)}</h3>
             <p>${card.endpoints?.length || 0} endpoints available</p>
             <span class="api-badge">${escapeHtml(card.base_path)}</span>
+        </div>
+    `).join('');
+}
+
+function renderAPIsTab(cards) {
+    const container = document.getElementById('apisContainer');
+    if (!container) return;
+    
+    if (!cards || cards.length === 0) {
+        container.innerHTML = '<div class="no-apis">No APIs configured. Add to route-config.json</div>';
+        return;
+    }
+    
+    container.innerHTML = cards.map(card => `
+        <div class="api-card" onclick="switchToTabAndSelectAPI('demo', '${card.id}')">
+            <div class="api-icon">
+                <i class="fas ${card.icon}" style="color: ${card.color}"></i>
+            </div>
+            <h3>${escapeHtml(card.name)}</h3>
+            <p>${escapeHtml(card.name_si || '')}</p>
+            <div class="api-endpoints-list">
+                ${(card.endpoints || []).slice(0, 3).map(ep => `
+                    <span class="api-endpoint-tag">${ep.method || 'GET'}</span>
+                `).join('')}
+                ${card.endpoints?.length > 3 ? `<span class="api-endpoint-tag">+${card.endpoints.length - 3}</span>` : ''}
+            </div>
+            <span class="api-badge">${card.endpoints?.length || 0} endpoints</span>
         </div>
     `).join('');
 }
@@ -110,6 +138,7 @@ function renderDocumentation(cards) {
     container.innerHTML = cards.map(card => `
         <div class="doc-section">
             <h3><i class="fas ${card.icon}" style="color: ${card.color}"></i> ${escapeHtml(card.name)}</h3>
+            <p class="doc-description">Base Path: <code>${escapeHtml(card.base_path)}</code></p>
             ${(card.endpoints || []).map(ep => `
                 <div class="endpoint-card">
                     <div class="endpoint-header" onclick="toggleEndpoint(this)">
@@ -126,8 +155,8 @@ function renderDocumentation(cards) {
                             </ul>
                         ` : ''}
                         <h4>🔗 Example:</h4>
-                        <code class="example-code">GET ${escapeHtml(ep.example || card.base_path + ep.path)}</code>
-                        <button class="test-this-btn" onclick="testThisEndpoint('${card.id}', '${escapeHtml(ep.name)}')">
+                        <code class="example-code">${ep.method || 'GET'} ${escapeHtml(ep.example || card.base_path + ep.path)}</code>
+                        <button class="test-this-btn" onclick="switchToTabAndTest('${card.id}', '${escapeHtml(ep.name)}')">
                             <i class="fas fa-play"></i> Test This Endpoint
                         </button>
                     </div>
@@ -194,17 +223,54 @@ function updateSelectors(cards) {
     };
 }
 
-async function testThisEndpoint(apiId, endpointName) {
-    const card = apiCardsData.find(c => c.id === apiId);
-    if (!card) return;
+// ============ TAB NAVIGATION ============
+function switchTab(tabId) {
+    currentTab = tabId;
     
-    const endpoint = card.endpoints.find(ep => ep.name === endpointName);
-    if (!endpoint) return;
+    // Update tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const activeTab = document.getElementById(tabId);
+    if (activeTab) activeTab.classList.add('active');
     
-    // Switch to demo section
-    showSection('demo');
+    // Update header nav tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.getAttribute('data-tab') === tabId) {
+            tab.classList.add('active');
+        }
+    });
     
-    // Set values in demo
+    // Update mobile nav items
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-tab') === tabId) {
+            item.classList.add('active');
+        }
+    });
+    
+    // Close mobile sidebar if open
+    const mobileSidebar = document.getElementById('mobileSidebar');
+    if (mobileSidebar && mobileSidebar.classList.contains('open')) {
+        mobileSidebar.classList.remove('open');
+    }
+    
+    // Update URL hash
+    history.pushState(null, '', `#${tabId}`);
+}
+
+function switchToTabAndSelectAPI(tabId, apiId) {
+    switchTab(tabId);
+    const apiSelect = document.getElementById('apiSelect');
+    if (apiSelect) {
+        apiSelect.value = apiId;
+        apiSelect.dispatchEvent(new Event('change'));
+    }
+}
+
+function switchToTabAndTest(apiId, endpointName) {
+    switchTab('demo');
     const apiSelect = document.getElementById('apiSelect');
     const endpointSelect = document.getElementById('endpointSelect');
     
@@ -223,84 +289,6 @@ async function testThisEndpoint(apiId, endpointName) {
             }, 100);
         }
     }, 100);
-}
-
-function selectAPI(apiId) {
-    showSection('demo');
-    const apiSelect = document.getElementById('apiSelect');
-    if (apiSelect) {
-        apiSelect.value = apiId;
-        apiSelect.dispatchEvent(new Event('change'));
-    }
-}
-
-function showSection(sectionId) {
-    currentSection = sectionId;
-    
-    // Hide all sections
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    // Show selected section
-    const activeSection = document.getElementById(sectionId);
-    if (activeSection) activeSection.classList.add('active');
-    
-    // Update sidebar active states
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.getAttribute('data-section') === sectionId) {
-            item.classList.add('active');
-        }
-    });
-    
-    // Update header nav active states
-    document.querySelectorAll('nav a').forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href') === `#${sectionId}`) {
-            link.classList.add('active');
-        }
-    });
-    
-    // Update URL hash without scrolling
-    history.pushState(null, '', `#${sectionId}`);
-}
-
-// ============ SIDEBAR FUNCTIONS ============
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const toggleIcon = document.getElementById('toggleIcon');
-    const mainContent = document.getElementById('mainContent');
-    
-    if (sidebar) {
-        sidebar.classList.toggle('collapsed');
-        if (toggleIcon) {
-            if (sidebar.classList.contains('collapsed')) {
-                toggleIcon.classList.remove('fa-chevron-left');
-                toggleIcon.classList.add('fa-chevron-right');
-            } else {
-                toggleIcon.classList.remove('fa-chevron-right');
-                toggleIcon.classList.add('fa-chevron-left');
-            }
-        }
-        if (mainContent) {
-            mainContent.classList.toggle('full-width');
-        }
-        // Save state to localStorage
-        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-    }
-}
-
-function closeSidebarOnMobile() {
-    if (window.innerWidth <= 768) {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.remove('open');
-    }
-}
-
-function toggleMobileMenu() {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.classList.toggle('open');
 }
 
 // ============ DEMO TEST FUNCTION ============
@@ -394,73 +382,54 @@ function escapeHtml(str) {
     });
 }
 
-function toggleTheme() {
-    document.body.classList.toggle('light-theme');
-    const isDark = !document.body.classList.contains('light-theme');
-    localStorage.setItem('darkTheme', isDark);
+// ============ MOBILE FUNCTIONS ============
+function toggleMobileMenu() {
+    const mobileSidebar = document.getElementById('mobileSidebar');
+    if (mobileSidebar) {
+        mobileSidebar.classList.toggle('open');
+    }
 }
 
-// Initialize on page load
+// ============ INITIALIZATION ============
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadAPICards();
     
-    // Restore sidebar state
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    if (savedState === 'true') {
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-        const toggleIcon = document.getElementById('toggleIcon');
-        if (sidebar) sidebar.classList.add('collapsed');
-        if (mainContent) mainContent.classList.add('full-width');
-        if (toggleIcon) {
-            toggleIcon.classList.remove('fa-chevron-left');
-            toggleIcon.classList.add('fa-chevron-right');
-        }
-    }
+    // Setup header tab click handlers
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.getAttribute('data-tab');
+            if (tabId) switchTab(tabId);
+        });
+    });
     
-    // Check URL hash for initial section
-    const hash = window.location.hash.substring(1);
-    if (hash && ['dashboard', 'apis', 'demo', 'docs'].includes(hash)) {
-        showSection(hash);
-    } else {
-        showSection('dashboard');
-    }
+    // Setup mobile nav click handlers
+    document.querySelectorAll('.mobile-nav-item[data-tab]').forEach(item => {
+        item.addEventListener('click', () => {
+            const tabId = item.getAttribute('data-tab');
+            if (tabId) switchTab(tabId);
+        });
+    });
     
     // Setup test button
     const testBtn = document.getElementById('testBtn');
     if (testBtn) testBtn.onclick = testAPIDemo;
     
-    // Sidebar navigation click handlers
-    document.querySelectorAll('.sidebar-item[data-section]').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            const section = item.getAttribute('data-section');
-            if (section) showSection(section);
-            closeSidebarOnMobile();
-        });
-    });
+    // Check URL hash for initial tab
+    const hash = window.location.hash.substring(1);
+    if (hash && ['dashboard', 'apis', 'demo', 'docs'].includes(hash)) {
+        switchTab(hash);
+    } else {
+        switchTab('dashboard');
+    }
     
-    // Header navigation click handlers
-    document.querySelectorAll('nav a').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const href = link.getAttribute('href');
-            if (href && href.startsWith('#')) {
-                showSection(href.substring(1));
-            }
-        });
-    });
-    
-    // Close sidebar when clicking outside on mobile
+    // Close mobile sidebar when clicking outside
     document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 768) {
-            const sidebar = document.getElementById('sidebar');
-            const menuBtn = document.querySelector('.menu-btn');
-            if (sidebar && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && !menuBtn?.contains(e.target)) {
-                    sidebar.classList.remove('open');
-                }
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const menuBtn = document.querySelector('.menu-btn');
+        if (mobileSidebar && mobileSidebar.classList.contains('open')) {
+            if (!mobileSidebar.contains(e.target) && !menuBtn?.contains(e.target)) {
+                mobileSidebar.classList.remove('open');
             }
         }
     });
