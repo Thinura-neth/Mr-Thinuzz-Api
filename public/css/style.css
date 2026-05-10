@@ -783,3 +783,595 @@ footer {
         margin-top: 5px;
     }
 }
+
+/* Add these styles to existing CSS */
+
+/* ============ DOCUMENTATION WITH SIDEBAR ============ */
+
+.docs-wrapper {
+    display: flex;
+    gap: 2rem;
+    position: relative;
+}
+
+/* Sidebar Styles */
+.docs-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: rgba(15, 23, 42, 0.8);
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    position: sticky;
+    top: 80px;
+    height: fit-content;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.docs-sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.docs-sidebar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.docs-sidebar::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+.sidebar-header {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+}
+
+.sidebar-header i {
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.sidebar-header span {
+    flex: 1;
+    font-weight: 600;
+}
+
+.close-sidebar {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--gray);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.close-sidebar:hover {
+    color: var(--error);
+}
+
+/* Sidebar Search */
+.sidebar-search {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    position: relative;
+}
+
+.sidebar-search i {
+    position: absolute;
+    left: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    font-size: 0.875rem;
+}
+
+.sidebar-search input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: var(--light);
+    padding: 0.5rem 0.5rem 0.5rem 2rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.sidebar-search input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+    padding: 0.5rem 0;
+}
+
+.sidebar-section {
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-section-header {
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-section-header:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.sidebar-section-header.active {
+    border-left-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.sidebar-section-header i:first-child {
+    width: 20px;
+    font-size: 1rem;
+}
+
+.sidebar-section-header .section-name {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.sidebar-section-header .section-badge {
+    background: rgba(99, 102, 241, 0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    color: var(--primary);
+}
+
+.sidebar-section-header .toggle-icon {
+    font-size: 0.75rem;
+    color: var(--gray);
+    transition: transform 0.3s;
+}
+
+.sidebar-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.sidebar-section.collapsed .sidebar-endpoints {
+    display: none;
+}
+
+.sidebar-endpoints {
+    padding-left: 2.5rem;
+}
+
+.sidebar-endpoint {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-left: 2px solid transparent;
+    font-size: 0.8rem;
+    color: var(--gray);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sidebar-endpoint:hover {
+    background: rgba(99, 102, 241, 0.05);
+    color: var(--light);
+}
+
+.sidebar-endpoint.active {
+    border-left-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+}
+
+.sidebar-endpoint .method-badge {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-weight: 700;
+}
+
+.sidebar-endpoint .method-badge.get {
+    background: var(--success);
+    color: white;
+}
+
+.sidebar-endpoint .method-badge.post {
+    background: var(--warning);
+    color: white;
+}
+
+.sidebar-endpoint .method-badge.put {
+    background: #3b82f6;
+    color: white;
+}
+
+.sidebar-endpoint .method-badge.delete {
+    background: var(--error);
+    color: white;
+}
+
+.sidebar-endpoint .endpoint-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Main Docs Content */
+.docs-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-toggle {
+    display: none;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: var(--light);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(99, 102, 241, 0.3);
+}
+
+.docs-inner {
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Doc Section Styles */
+.doc-section {
+    margin-bottom: 2rem;
+    scroll-margin-top: 80px;
+}
+
+.doc-section:last-child {
+    margin-bottom: 0;
+}
+
+.doc-section h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.doc-section h3 i {
+    color: var(--primary);
+    font-size: 1.5rem;
+}
+
+.doc-section h3 small {
+    font-size: 0.8rem;
+    color: var(--gray);
+    font-weight: normal;
+}
+
+/* Endpoint Card */
+.endpoint-card {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: all 0.3s;
+    scroll-margin-top: 80px;
+}
+
+.endpoint-card:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.endpoint-card-header {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.endpoint-card-header .method {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+}
+
+.endpoint-card-header .path {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--primary);
+    flex: 1;
+}
+
+.endpoint-card-header .copy-endpoint {
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.3s;
+}
+
+.endpoint-card-header .copy-endpoint:hover {
+    color: var(--primary);
+}
+
+.endpoint-card-header .toggle-details {
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.endpoint-card.expanded .toggle-details {
+    transform: rotate(180deg);
+}
+
+.endpoint-card-body {
+    padding: 0 1rem;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.endpoint-card.expanded .endpoint-card-body {
+    max-height: 500px;
+    padding: 0 1rem 1rem 1rem;
+}
+
+.endpoint-description {
+    color: var(--gray);
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.endpoint-params {
+    margin-bottom: 1rem;
+}
+
+.endpoint-params h4 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--light);
+}
+
+.params-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+}
+
+.params-table th,
+.params-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.params-table th {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.params-table td {
+    color: var(--gray);
+}
+
+.params-table .required {
+    color: var(--warning);
+    font-size: 0.7rem;
+}
+
+.endpoint-example {
+    background: var(--darker);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.endpoint-example h4 {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    color: var(--gray);
+}
+
+.endpoint-example code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--success);
+    word-break: break-all;
+}
+
+.endpoint-response {
+    margin-top: 1rem;
+}
+
+.endpoint-response h4 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--light);
+}
+
+.endpoint-response pre {
+    background: var(--darker);
+    padding: 0.75rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.75rem;
+    max-height: 300px;
+}
+
+.test-this-btn {
+    margin-top: 0.75rem;
+    background: var(--primary);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+}
+
+.test-this-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+/* Loading Spinner Small */
+.loading-spinner.small {
+    padding: 1rem;
+}
+
+.loading-spinner.small i {
+    font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    .docs-wrapper {
+        flex-direction: column;
+    }
+    
+    .docs-sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 80%;
+        max-width: 300px;
+        height: 100vh;
+        z-index: 2000;
+        margin: 0;
+        border-radius: 0;
+        transition: left 0.3s ease;
+    }
+    
+    .docs-sidebar.open {
+        left: 0;
+    }
+    
+    .close-sidebar {
+        display: block;
+    }
+    
+    .sidebar-toggle {
+        display: flex;
+    }
+    
+    .docs-inner {
+        padding: 1rem;
+    }
+    
+    .endpoint-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .endpoint-card-header .path {
+        width: 100%;
+        word-break: break-all;
+    }
+    
+    .params-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .doc-section h3 {
+        font-size: 1.2rem;
+    }
+    
+    .endpoint-card-header .method {
+        font-size: 0.7rem;
+    }
+    
+    .endpoint-card-header .path {
+        font-size: 0.75rem;
+    }
+}
+
+/* Smooth Scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Active Section Highlight */
+.doc-section.highlight {
+    animation: highlight 0.5s ease;
+}
+
+@keyframes highlight {
+    0% {
+        background: rgba(99, 102, 241, 0.2);
+    }
+    100% {
+        background: transparent;
+    }
+}
+
+/* Back to Top Button */
+.back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+    z-index: 100;
+    border: none;
+}
+
+.back-to-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    background: var(--primary-dark);
+    transform: translateY(-3px);
+}
