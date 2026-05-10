@@ -611,3 +611,175 @@ footer {
         text-align: center;
     }
 }
+/* Add to existing CSS */
+
+/* Auto Card Styles */
+.api-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.api-card:hover {
+    transform: translateY(-5px);
+}
+
+.api-card small {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 0.75rem;
+}
+
+/* Param Input Styles */
+.param-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.param-field {
+    flex: 1;
+    min-width: 150px;
+}
+
+.param-field label {
+    display: block;
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    color: var(--gray);
+}
+
+.param-field input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: var(--light);
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.param-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.required-star {
+    color: var(--error);
+}
+
+/* Test Endpoint Button */
+.test-endpoint-btn {
+    background: rgba(99, 102, 241, 0.2);
+    border: none;
+    color: var(--primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-left: auto;
+    transition: all 0.3s;
+}
+
+.test-endpoint-btn:hover {
+    background: rgba(99, 102, 241, 0.4);
+}
+
+/* Params Section */
+.params {
+    margin: 10px 0;
+    font-size: 0.875rem;
+}
+
+.params code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 5px;
+    font-size: 0.75rem;
+}
+
+.params code.required {
+    color: var(--warning);
+    border: 1px solid var(--warning);
+}
+
+/* Method Colors */
+.method.post {
+    background: var(--warning);
+}
+
+.method.put {
+    background: #3b82f6;
+}
+
+.method.delete {
+    background: var(--error);
+}
+
+/* Loading States */
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+}
+
+.loading-spinner i {
+    font-size: 40px;
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+
+/* No APIs / Error States */
+.no-apis, .error-message {
+    text-align: center;
+    padding: 40px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+}
+
+.no-apis i, .error-message i {
+    font-size: 48px;
+    color: var(--warning);
+    margin-bottom: 16px;
+}
+
+.no-apis pre {
+    background: #1e1e1e;
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 20px;
+    text-align: left;
+    overflow-x: auto;
+    font-size: 0.75rem;
+}
+
+/* Toast Animation */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .param-group {
+        flex-direction: column;
+    }
+    
+    .param-field {
+        min-width: auto;
+    }
+    
+    .endpoint-header {
+        flex-wrap: wrap;
+    }
+    
+    .test-endpoint-btn {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+}
