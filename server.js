@@ -10,13 +10,16 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from public directory
 app.use(express.static('public'));
+app.use('/css', express.static(path.join(__dirname, 'public/css')));
+app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// Serve JS files explicitly
-app.use('/js', express.static('public'));
-app.use('/css', express.static('public/css'));
+// ============ IMPORT ALL-APIS ROUTER ============
+const allApisRouter = require('./all-apis');
+app.use('/all-apis', allApisRouter);
 
 // Auto-load all routes from routes/ folder
 const routesPath = path.join(__dirname, 'routes');
@@ -74,31 +77,25 @@ app.get('/api-info', (req, res) => {
             "No API Key Required",
             "Unlimited Requests",
             "Real-time Scraping",
-            "Live Endpoint Status"
+            "Live Endpoint Status",
+            "Auto-generated API Cards"
         ],
         endpoints: {
             "GET /": "Beautiful UI Interface",
             "GET /health": "Server health & stats",
             "GET /server-stats": "Real-time server statistics",
             "GET /api-info": "This API information",
-            "GET /game/fitgirl-search?q=SEARCH": "Search games on FitGirl",
-            "GET /game/fitgirl-info?url=URL": "Get game info from FitGirl",
-            "GET /game/fitgirl-download?url=URL": "Extract download link",
-            "GET /anime/search?q=TITLE": "Search anime (Multi-source)",
-            "GET /anime/popular": "Popular anime",
-            "GET /anime/info?id=ID": "Anime info by ID",
-            "GET /movie/search?q=SEARCH": "Search movies on CineSubz",
-            "GET /movie/recent": "Recent movies",
-            "GET /movie/info?url=URL": "Movie details with download links",
-            "GET /movie/download?url=URL": "Extract movie download link",
-            "GET /movie/popular": "Popular movies"
+            "GET /all-apis": "API Aggregator",
+            "GET /all-apis/cards": "Auto-generated API cards data",
+            "GET /game/*": "Games API (FitGirl Repacks)",
+            "GET /movie/*": "Movies API (CineSubz)",
+            "GET /anime/*": "Anime API (Jikan + AniList)",
+            "GET /ai/*": "AI API (Coming Soon)",
+            "GET /search/*": "Search API (Coming Soon)",
+            "GET /stalk/*": "Stalk API (Coming Soon)",
+            "GET /download/*": "Download API (Coming Soon)"
         }
     });
-});
-
-// Serve dashboard.js explicitly
-app.get('/dashboard.js', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.js'));
 });
 
 // Root - serve beautiful UI
@@ -130,14 +127,15 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`
-    ╔════════════════════════════════════════════════════╗
-    ║     🚀 MR THINUZZ REAL-TIME API SERVER v3.1        ║
-    ╠════════════════════════════════════════════════════╣
-    ║  📍 URL: http://localhost:${PORT}                    ║
-    ║  👤 Author: Mr Thinuzz                             ║
-    ║  📁 Routes: ${routeFiles.map(f => f.replace('.js', '')).join(', ')}     ║
-    ║  ⚡ Status: Online - Real-time Ready               ║
-    ║  ✨ Unlimited Requests - No API Key                ║
-    ╚════════════════════════════════════════════════════╝
+    ╔════════════════════════════════════════════════════════════╗
+    ║     🚀 MR THINUZZ REAL-TIME API SERVER v3.1                ║
+    ╠════════════════════════════════════════════════════════════╣
+    ║  📍 URL: http://localhost:${PORT}                            ║
+    ║  👤 Author: Mr Thinuzz                                     ║
+    ║  📁 Routes: ${routeFiles.map(f => f.replace('.js', '')).join(', ')}                ║
+    ║  🃏 Auto Cards: /all-apis/cards                           ║
+    ║  ⚡ Status: Online - Auto Card Generation Active          ║
+    ║  ✨ Unlimited Requests - No API Key Required              ║
+    ╚════════════════════════════════════════════════════════════╝
     `);
 });
