@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 
-// Load route configuration
+// Load route configuration - FIXED PATH
 const configPath = path.join(__dirname, 'route-config.json');
 let routeConfig = { apis: {} };
 
@@ -14,10 +14,50 @@ function reloadConfig() {
         if (fs.existsSync(configPath)) {
             const configData = fs.readFileSync(configPath, 'utf8');
             routeConfig = JSON.parse(configData);
-            console.log('✅ Route configuration reloaded');
+            console.log('✅ Route configuration reloaded from:', configPath);
+            console.log('📋 Loaded APIs:', Object.keys(routeConfig.apis));
+        } else {
+            console.log('⚠️ route-config.json not found at:', configPath);
+            // Create default config if not exists
+            const defaultConfig = {
+                version: "1.0",
+                apis: {
+                    movies: {
+                        name: "Movies API",
+                        name_si: "චිත්‍රපට API",
+                        icon: "fa-film",
+                        color: "#6366f1",
+                        base_path: "/movie",
+                        enabled: true,
+                        endpoints: []
+                    },
+                    games: {
+                        name: "Games API",
+                        name_si: "ක්‍රීඩා API", 
+                        icon: "fa-gamepad",
+                        color: "#10b981",
+                        base_path: "/game",
+                        enabled: true,
+                        endpoints: []
+                    },
+                    anime: {
+                        name: "Anime API",
+                        name_si: "ඇනිමේ API",
+                        icon: "fa-dragon",
+                        color: "#ec4899",
+                        base_path: "/anime",
+                        enabled: true,
+                        endpoints: []
+                    }
+                }
+            };
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            routeConfig = defaultConfig;
+            console.log('✅ Created default route-config.json');
         }
     } catch (error) {
         console.error('❌ Error loading config:', error.message);
+        routeConfig = { apis: {} };
     }
 }
 
@@ -26,15 +66,19 @@ reloadConfig();
 
 // Watch for config file changes (for development)
 if (process.env.NODE_ENV !== 'production') {
-    fs.watch(configPath, (eventType) => {
-        if (eventType === 'change') {
-            console.log('📝 Config file changed, reloading...');
-            reloadConfig();
-        }
-    });
+    try {
+        fs.watch(configPath, (eventType) => {
+            if (eventType === 'change') {
+                console.log('📝 Config file changed, reloading...');
+                reloadConfig();
+            }
+        });
+    } catch (err) {
+        console.log('⚠️ Cannot watch config file:', err.message);
+    }
 }
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
 // Helper function to fetch API
 async function fetchAPI(endpoint, params = {}) {
@@ -67,14 +111,14 @@ router.get('/cards', (req, res) => {
                 icon: api.icon || 'fa-code',
                 color: api.color || '#6366f1',
                 base_path: api.base_path,
-                endpoints: api.endpoints.map(ep => ({
+                endpoints: (api.endpoints || []).map(ep => ({
                     name: ep.name,
-                    method: ep.method,
+                    method: ep.method || 'GET',
                     path: ep.path,
-                    params: ep.params,
-                    required_params: ep.required_params,
+                    params: ep.params || [],
+                    required_params: ep.required_params || [],
                     example: ep.example,
-                    description: ep.description
+                    description: ep.description || 'No description available'
                 }))
             });
         }
@@ -93,7 +137,7 @@ router.get('/cards', (req, res) => {
 
 // Dynamically create routes based on config
 for (const [apiKey, apiConfig] of Object.entries(routeConfig.apis)) {
-    if (apiConfig.enabled !== false) {
+    if (apiConfig.enabled !== false && apiConfig.endpoints) {
         
         // Create sub-router for each API
         const subRouter = express.Router();
@@ -108,16 +152,16 @@ for (const [apiKey, apiConfig] of Object.entries(routeConfig.apis)) {
                 base_path: apiConfig.base_path,
                 endpoints: apiConfig.endpoints.map(ep => ({
                     name: ep.name,
-                    method: ep.method,
+                    method: ep.method || 'GET',
                     url: `${apiConfig.base_path}${ep.path}`,
-                    params: ep.params,
+                    params: ep.params || [],
                     example: ep.example,
                     description: ep.description
                 }))
             });
         });
         
-        // Create individual endpoints
+        // Create individual endpoints (proxy to actual routes)
         for (const endpoint of apiConfig.endpoints) {
             const fullPath = endpoint.path;
             const method = (endpoint.method || 'GET').toLowerCase();
@@ -157,7 +201,8 @@ for (const [apiKey, apiConfig] of Object.entries(routeConfig.apis)) {
                     res.status(error.response?.status || 500).json({
                         status: false,
                         error: error.message,
-                        original_endpoint: targetUrl
+                        original_endpoint: targetUrl,
+                        note: "Make sure the original route is loaded in server.js"
                     });
                 }
             });
@@ -237,55 +282,40 @@ router.get('/', async (req, res) => {
         auto_generated_cards: "/all-apis/cards",
         how_to_add_new_api: {
             step1: "Add new API configuration to route-config.json",
-            step2: "Create route file in /routes folder",
-            step3: "Restart server - card auto generates!"
-        }
-    });
-});
-
-// ============ INSTAGRAM SECTION (Example new API) ============
-
-// You can add new section directly in code or via config
-router.get('/instagram', async (req, res) => {
-    const { username, action } = req.query;
-    
-    // Check if Instagram is enabled in config
-    if (routeConfig.apis.instagram?.enabled === false) {
-        return res.json({
-            status: false,
-            error: "Instagram API is currently disabled",
-            timestamp: new Date().toISOString()
-        });
-    }
-    
-    res.json({
-        status: true,
-        section: 'instagram',
-        name: "Instagram API",
-        message: "Instagram API - Coming Soon!",
-        note: "Add your Instagram API configuration to route-config.json to enable auto card generation",
-        how_to_enable: {
-            add_to_config: {
-                instagram: {
-                    name: "Instagram API",
-                    icon: "fa-instagram",
-                    color: "#e4405f",
-                    base_path: "/instagram",
+            step2: "Restart server - card auto generates!",
+            example: {
+                new_api: {
+                    name: "New API Name",
+                    icon: "fa-star",
+                    color: "#ff6b6b",
+                    base_path: "/newapi",
                     enabled: true,
                     endpoints: [
                         {
-                            name: "User Info",
+                            name: "Get Data",
                             method: "GET",
-                            path: "/user",
-                            params: ["username"],
-                            required_params: ["username"],
-                            example: "/instagram/user?username=example",
-                            description: "Get Instagram user information"
+                            path: "/data",
+                            params: ["query"],
+                            required_params: ["query"],
+                            example: "/newapi/data?query=test"
                         }
                     ]
                 }
             }
         }
+    });
+});
+
+// ============ INSTAGRAM SECTION ============
+
+router.get('/instagram', async (req, res) => {
+    res.json({
+        status: true,
+        section: 'instagram',
+        name: "Instagram API",
+        message: "Instagram API - Coming Soon!",
+        note: "Add Instagram configuration to route-config.json",
+        timestamp: new Date().toISOString()
     });
 });
 
