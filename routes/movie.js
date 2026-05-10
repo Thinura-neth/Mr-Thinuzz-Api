@@ -761,19 +761,22 @@ router.get('/info', async (req, res) => {
     res.json(result);
 });
 
-// ============ NEW: EXTRACT DOWNLOAD ENDPOINT ============
+// ============ EXTRACT DOWNLOAD ENDPOINT (FIXED) ============
 router.get('/extract', async (req, res) => {
-    const { url, raw } = req.query;
+    const { url } = req.query;
     
+    // Check if URL parameter exists
     if (!url) {
         return res.status(400).json({
             status: false,
             error: "URL parameter is required",
-            usage: "/movie/extract?url=https://cinesubz.net/zt-links/...",
+            usage: "/movie/extract?url=https://cinesubz.net/zt-links/xxxxx/",
+            example: "https://mr-thinuzz-api.vercel.app/movie/extract?url=https://cinesubz.net/zt-links/niavvuv2re/",
             timestamp: new Date().toISOString()
         });
     }
     
+    // Decode URL
     let decodedUrl;
     try {
         decodedUrl = decodeURIComponent(url);
@@ -781,18 +784,31 @@ router.get('/extract', async (req, res) => {
         decodedUrl = url;
     }
     
-    // Validate URL
+    // Validate URL format
     if (!decodedUrl.startsWith('http')) {
         return res.status(400).json({
             status: false,
-            error: "Invalid URL. Must start with http:// or https://",
+            error: "Invalid URL format. Must start with http:// or https://",
+            provided: decodedUrl,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Validate it's a CineSubz ZT-links page
+    if (!decodedUrl.includes('cinesubz.net') || !decodedUrl.includes('/zt-links/')) {
+        return res.status(400).json({
+            status: false,
+            error: "URL must be a CineSubz ZT-links page",
+            required_format: "https://cinesubz.net/zt-links/[id]/",
+            provided: decodedUrl,
             timestamp: new Date().toISOString()
         });
     }
     
     console.log(`📥 Download extraction request: ${decodedUrl}`);
     
-    const result = await extractDownloadUrl(decodedUrl, raw !== 'true');
+    // Call the extraction function
+    const result = await extractDownloadUrl(decodedUrl);
     
     if (result.status) {
         res.json({
@@ -806,6 +822,7 @@ router.get('/extract', async (req, res) => {
             status: false,
             error: result.error,
             original_url: decodedUrl,
+            debug_info: result.raw_html_sample || null,
             timestamp: new Date().toISOString()
         });
     }
