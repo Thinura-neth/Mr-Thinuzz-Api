@@ -40,7 +40,7 @@ function extractHostFromUrl(url) {
     }
 }
 
-// ============ EXTRACT CINESUBZ ZT-LINKS PAGE ============
+// ============ IMPROVED: EXTRACT CINESUBZ ZT-LINKS PAGE ============
 async function extractZtLinks(ztUrl) {
     try {
         console.log(`🔗 Extracting ZT-links from: ${ztUrl}`);
@@ -55,56 +55,89 @@ async function extractZtLinks(ztUrl) {
         });
         
         const html = response.data;
-        const $ = cheerio.load(html);
         
+        // ============ METHOD 1: Extract direct button link ============
         let finalUrl = null;
-        let finalType = null;
-        let isTelegram = false;
         
-        // Check for meta refresh redirect
-        const metaRefresh = $('meta[http-equiv="refresh"]').attr('content');
-        if (metaRefresh && metaRefresh.includes('url=')) {
-            const match = metaRefresh.match(/url=(.+)$/i);
-            if (match) {
-                finalUrl = decodeURIComponent(match[1]);
+        // Pattern for "Go to Download Page" button
+        const buttonPattern = /<a[^>]*id="link"[^>]*href="([^"]+)"/i;
+        const buttonMatch = html.match(buttonPattern);
+        if (buttonMatch && buttonMatch[1]) {
+            finalUrl = buttonMatch[1];
+            console.log(`📌 Found button link: ${finalUrl}`);
+        }
+        
+        // Pattern for any .wait-done a
+        if (!finalUrl) {
+            const waitDonePattern = /<div[^>]*class="[^"]*wait-done[^"]*"[^>]*>.*?<a[^>]*href="([^"]+)"/si;
+            const waitMatch = html.match(waitDonePattern);
+            if (waitMatch && waitMatch[1]) {
+                finalUrl = waitMatch[1];
+                console.log(`📌 Found wait-done link: ${finalUrl}`);
+            }
+        }
+        
+        // ============ METHOD 2: Meta refresh URL ============
+        let redirectTime = 70;
+        const metaPattern = /<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'](\d+);\s*url=([^"']+)/i;
+        const metaMatch = html.match(metaPattern);
+        if (metaMatch) {
+            redirectTime = parseInt(metaMatch[1]) || 70;
+            const metaUrl = decodeURIComponent(metaMatch[2]);
+            if (!finalUrl) {
+                finalUrl = metaUrl;
                 console.log(`📌 Found meta refresh URL: ${finalUrl}`);
             }
         }
         
-        // Extract direct "Click Here" button link
-        const clickHereLink = $('.wait-done a').first().attr('href');
-        if (clickHereLink && clickHereLink !== '#') {
-            finalUrl = clickHereLink;
-            finalType = 'direct_click';
-            console.log(`📌 Found Click Here link: ${finalUrl}`);
+        // ============ METHOD 3: Extract from JavaScript ============
+        if (!finalUrl) {
+            // Look for Link object (from the HTML)
+            const linkVarPattern = /var\s+Link\s*=\s*\{[^}]*"time":"(\d+)"[^}]*"exit":"([^"]*)"[^}]*\}/i;
+            const linkMatch = html.match(linkVarPattern);
+            if (linkMatch) {
+                console.log(`📌 Found Link object with time: ${linkMatch[1]}`);
+            }
+            
+            // Look for any google.com/server links in JavaScript
+            const serverPattern = /https:\/\/google\.com\/server\d+[^\s"'<>]*/gi;
+            const serverMatches = html.match(serverPattern);
+            if (serverMatches && serverMatches.length > 0 && !finalUrl) {
+                finalUrl = serverMatches[0];
+                console.log(`📌 Found server URL in script: ${finalUrl}`);
+            }
         }
         
-        // Check for countdown timer
-        const hasCountdown = $('#countdown').length > 0;
+        // ============ APPLY URL REPLACEMENTS ============
+        let isTelegram = false;
+        let finalType = 'extracted';
         
-        // Apply URL replacement logic (based on HTML analysis)
-        if (finalUrl && finalUrl.includes('google.com')) {
-            const urlMappings = [
-                { search: ["https://google.com/server11/1:/", "https://google.com/server12/1:/", "https://google.com/server13/1:/"], replace: "https://bot3.sonic-cloud.online/server1/" },
-                { search: ["https://google.com/server21/1:/", "https://google.com/server22/1:/", "https://google.com/server23/1:/"], replace: "https://bot3.sonic-cloud.online/server2/" },
-                { search: ["https://google.com/server3/1:/"], replace: "https://bot3.sonic-cloud.online/server3/" },
-                { search: ["https://google.com/server4/1:/"], replace: "https://bot3.sonic-cloud.online/server4/" },
-                { search: ["https://google.com/server5/1:/"], replace: "https://bot3.sonic-cloud.online/server5/" },
-                { search: ["https://google.com/server6/"], replace: "https://bot3.sonic-cloud.online/server6/" }
-            ];
+        if (finalUrl) {
+            // Check for Telegram
+            if (finalUrl.includes('t.me')) {
+                isTelegram = true;
+                finalType = 'telegram';
+                // Apply Telegram replacements
+                finalUrl = finalUrl.replace('srilank222', 'srilanka2222');
+                finalUrl = finalUrl.replace('https://tsadsdaas.me/', 'http://tdsdfasdaddd.me/');
+                console.log(`📌 Telegram link processed: ${finalUrl}`);
+            }
             
-            let modifiedUrl = finalUrl;
-            for (const mapping of urlMappings) {
-                for (const searchUrl of mapping.search) {
-                    if (modifiedUrl.includes(searchUrl)) {
-                        modifiedUrl = modifiedUrl.replace(searchUrl, mapping.replace);
-                        // Add extension parameter
+            // Apply server replacements for google.com links
+            if (finalUrl.includes('google.com')) {
+                const urlMappings = [
+                    { search: "https://google.com/server6/", replace: "https://bot3.sonic-cloud.online/server6/" }
+                ];
+                
+                let modifiedUrl = finalUrl;
+                for (const mapping of urlMappings) {
+                    if (modifiedUrl.includes(mapping.search)) {
+                        modifiedUrl = modifiedUrl.replace(mapping.search, mapping.replace);
+                        // Add extension parameter if needed
                         if (modifiedUrl.includes('.mp4') && !modifiedUrl.includes('?ext=')) {
                             modifiedUrl = modifiedUrl.replace('.mp4', '?ext=mp4');
                         } else if (modifiedUrl.includes('.mkv') && !modifiedUrl.includes('?ext=')) {
                             modifiedUrl = modifiedUrl.replace('.mkv', '?ext=mkv');
-                        } else if (modifiedUrl.includes('.zip') && !modifiedUrl.includes('?ext=')) {
-                            modifiedUrl = modifiedUrl.replace('.zip', '?ext=zip');
                         }
                         finalUrl = modifiedUrl;
                         finalType = 'replaced_download';
@@ -112,48 +145,66 @@ async function extractZtLinks(ztUrl) {
                         break;
                     }
                 }
-                if (finalType === 'replaced_download') break;
             }
-        }
-        
-        // Check for Telegram links
-        if (finalUrl && finalUrl.includes('t.me')) {
-            isTelegram = true;
-            finalType = 'telegram';
-            // Apply Telegram URL replacements
-            let tempUrl = finalUrl;
-            tempUrl = tempUrl.replace('srilank222', 'srilanka2222');
-            tempUrl = tempUrl.replace('https://tsadsdaas.me/', 'http://tdsdfasdaddd.me/');
-            finalUrl = tempUrl;
-            console.log(`📌 Telegram link: ${finalUrl}`);
-        }
-        
-        // Extract countdown time from meta refresh
-        let redirectTime = 70;
-        if (metaRefresh) {
-            const timeMatch = metaRefresh.match(/content="(\d+);/i);
-            if (timeMatch) {
-                redirectTime = parseInt(timeMatch[1]);
+            
+            // Extract filename
+            let filename = null;
+            const filenameMatch = finalUrl.match(/\/([^\/?#]+\.(?:mp4|mkv|zip|rar|avi|mov))(?:\?|$)/i);
+            if (filenameMatch) {
+                filename = decodeURIComponent(filenameMatch[1]);
+            } else {
+                // Try to get from page title
+                const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+                if (titleMatch) {
+                    filename = titleMatch[1].replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100) + '.mp4';
+                }
             }
+            
+            return {
+                status: true,
+                data: {
+                    original_url: ztUrl,
+                    download_url: finalUrl,
+                    filename: filename,
+                    is_telegram: isTelegram,
+                    has_countdown: true,
+                    redirect_time_seconds: redirectTime,
+                    download_type: finalType,
+                    raw_html_length: html.length
+                }
+            };
         }
         
-        // Extract filename from URL
-        let filename = null;
-        if (finalUrl) {
-            filename = extractFilenameFromUrl(finalUrl);
+        // If we still don't have a URL, try to extract from page content
+        const allLinks = html.match(/https?:\/\/[^\s"'<>]+/gi) || [];
+        const validLinks = allLinks.filter(link => 
+            link.includes('google.com/server') || 
+            link.includes('bot3.sonic-cloud.online') ||
+            link.includes('t.me')
+        );
+        
+        if (validLinks.length > 0) {
+            finalUrl = validLinks[0];
+            console.log(`📌 Found link from page scan: ${finalUrl}`);
+            
+            return {
+                status: true,
+                data: {
+                    original_url: ztUrl,
+                    download_url: finalUrl,
+                    filename: null,
+                    is_telegram: finalUrl.includes('t.me'),
+                    has_countdown: true,
+                    redirect_time_seconds: redirectTime,
+                    download_type: 'page_scan'
+                }
+            };
         }
         
         return {
-            status: true,
-            data: {
-                original_url: ztUrl,
-                download_url: finalUrl,
-                filename: filename,
-                is_telegram: isTelegram,
-                has_countdown: hasCountdown,
-                redirect_time_seconds: redirectTime,
-                download_type: finalType || 'extracted'
-            }
+            status: false,
+            error: "Could not extract download link from ZT-links page",
+            raw_html_sample: html.substring(0, 500)
         };
         
     } catch (error) {
@@ -165,211 +216,20 @@ async function extractZtLinks(ztUrl) {
     }
 }
 
-// ============ EXTRACT GOOGLE DRIVE LINK ============
-async function extractGoogleDrive(url) {
-    try {
-        console.log(`📁 Extracting Google Drive link: ${url}`);
-        
-        // Extract file ID from various Google Drive URL formats
-        let fileId = null;
-        
-        // Pattern 1: /d/{fileId}
-        let match = url.match(/\/d\/([^\/?#]+)/);
-        if (match) fileId = match[1];
-        
-        // Pattern 2: id={fileId}
-        if (!fileId) {
-            match = url.match(/id=([^&?#]+)/);
-            if (match) fileId = match[1];
-        }
-        
-        // Pattern 3: /file/d/{fileId}
-        if (!fileId) {
-            match = url.match(/\/file\/d\/([^\/?#]+)/);
-            if (match) fileId = match[1];
-        }
-        
-        if (fileId) {
-            const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-            return {
-                status: true,
-                data: {
-                    original_url: url,
-                    download_url: downloadUrl,
-                    file_id: fileId,
-                    host: 'drive.google.com',
-                    extraction_method: 'google_drive'
-                }
-            };
-        }
-        
-        return {
-            status: false,
-            error: "Could not extract Google Drive file ID"
-        };
-        
-    } catch (error) {
-        return {
-            status: false,
-            error: `Google Drive extraction failed: ${error.message}`
-        };
-    }
-}
-
-// ============ EXTRACT TELEGRAM LINK ============
-async function extractTelegramLink(url) {
-    try {
-        console.log(`📱 Processing Telegram link: ${url}`);
-        
-        // Apply the same replacements as in the HTML
-        let processedUrl = url;
-        processedUrl = processedUrl.replace('srilank222', 'srilanka2222');
-        processedUrl = processedUrl.replace('https://tsadsdaas.me/', 'http://tdsdfasdaddd.me/');
-        
-        return {
-            status: true,
-            data: {
-                original_url: url,
-                telegram_url: processedUrl,
-                is_telegram: true,
-                note: "Telegram links require manual access or bot interaction"
-            }
-        };
-        
-    } catch (error) {
-        return {
-            status: false,
-            error: `Telegram link processing failed: ${error.message}`
-        };
-    }
-}
-
-// ============ CHECK FOR DIRECT FILE LINK ============
-function isDirectFileLink(url) {
-    const fileExtensions = /\.(mp4|mkv|avi|mov|webm|flv|3gp|m4v|mpg|mpeg|wmv|zip|rar|7z|tar|gz)(\?|$)/i;
-    return fileExtensions.test(url);
-}
-
-// ============ MAIN DOWNLOAD FUNCTION ============
-async function extractDownloadUrl(inputUrl, recursive = true) {
+// ============ SIMPLIFIED MAIN DOWNLOAD FUNCTION ============
+async function extractDownloadUrl(inputUrl) {
     console.log(`🎯 Starting download extraction for: ${inputUrl}`);
     
-    let currentUrl = inputUrl;
-    let depth = 0;
-    const maxDepth = 3;
+    const hostname = extractHostFromUrl(inputUrl);
     
-    while (depth < maxDepth) {
-        const hostname = extractHostFromUrl(currentUrl);
-        
-        // Case 1: Direct file link
-        if (isDirectFileLink(currentUrl)) {
-            return {
-                status: true,
-                data: {
-                    original_url: inputUrl,
-                    download_url: currentUrl,
-                    filename: extractFilenameFromUrl(currentUrl),
-                    host: hostname,
-                    extraction_method: 'direct_file',
-                    depth: depth
-                }
-            };
-        }
-        
-        // Case 2: CineSubz ZT-links page
-        if (hostname.includes('cinesubz.net') && currentUrl.includes('/zt-links/')) {
-            const result = await extractZtLinks(currentUrl);
-            if (result.status && result.data.download_url) {
-                // Check if we need to follow another redirect
-                const nextHost = extractHostFromUrl(result.data.download_url);
-                if (recursive && depth < maxDepth - 1 && 
-                    (nextHost.includes('cinesubz.net') || isDirectFileLink(result.data.download_url) === false)) {
-                    currentUrl = result.data.download_url;
-                    depth++;
-                    console.log(`🔁 Following redirect to: ${currentUrl}`);
-                    continue;
-                }
-                return result;
-            }
-            return result;
-        }
-        
-        // Case 3: Google Drive
-        else if (hostname.includes('drive.google.com')) {
-            const result = await extractGoogleDrive(currentUrl);
-            return result;
-        }
-        
-        // Case 4: Telegram links
-        else if (hostname.includes('t.me') || currentUrl.includes('telegram')) {
-            const result = await extractTelegramLink(currentUrl);
-            return result;
-        }
-        
-        // Case 5: Try to get any download link from the page
-        else {
-            try {
-                const response = await axios.get(currentUrl, {
-                    timeout: 30000,
-                    maxRedirects: 5,
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
-                });
-                
-                const html = response.data;
-                const $ = cheerio.load(html);
-                
-                // Look for downloadable file links
-                let foundUrl = null;
-                $('a[href*=".mp4"], a[href*=".mkv"], a[href*=".zip"], a[href*=".rar"]').each((i, el) => {
-                    const href = $(el).attr('href');
-                    if (href && !foundUrl && href.startsWith('http')) {
-                        foundUrl = href;
-                    }
-                });
-                
-                if (foundUrl && isDirectFileLink(foundUrl)) {
-                    return {
-                        status: true,
-                        data: {
-                            original_url: inputUrl,
-                            download_url: foundUrl,
-                            filename: extractFilenameFromUrl(foundUrl),
-                            host: hostname,
-                            extraction_method: 'page_scan',
-                            depth: depth
-                        }
-                    };
-                }
-                
-                // Check meta refresh
-                const metaRefresh = $('meta[http-equiv="refresh"]').attr('content');
-                if (metaRefresh && metaRefresh.includes('url=')) {
-                    const match = metaRefresh.match(/url=(.+)$/i);
-                    if (match && recursive && depth < maxDepth - 1) {
-                        currentUrl = decodeURIComponent(match[1]);
-                        depth++;
-                        console.log(`🔁 Following meta refresh to: ${currentUrl}`);
-                        continue;
-                    }
-                }
-            } catch (e) {
-                console.log(`Page fetch error: ${e.message}`);
-            }
-            
-            return {
-                status: false,
-                error: `No download link found for ${hostname}`,
-                last_url: currentUrl
-            };
-        }
+    // Only handle CineSubz ZT-links pages
+    if (hostname.includes('cinesubz.net') && inputUrl.includes('/zt-links/')) {
+        return await extractZtLinks(inputUrl);
     }
     
     return {
         status: false,
-        error: `Maximum recursion depth (${maxDepth}) reached`,
-        last_url: currentUrl
+        error: `Only CineSubz ZT-links URLs are supported. Received: ${hostname}`
     };
 }
 
