@@ -1,7 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const router = express.Router();
 
 // ============ HELPER FUNCTIONS ============
@@ -42,41 +43,7 @@ function extractHostFromUrl(url) {
     }
 }
 
-// ============ BROWSER MANAGEMENT ============
-let browserInstance = null;
-let browserLaunchTime = null;
-const BROWSER_IDLE_TIMEOUT = 5 * 60 * 1000;
-
-async function getBrowser() {
-    const now = Date.now();
-    
-    if (browserInstance && browserLaunchTime && (now - browserLaunchTime) > BROWSER_IDLE_TIMEOUT) {
-        console.log('🔄 Closing idle browser...');
-        await browserInstance.close();
-        browserInstance = null;
-        browserLaunchTime = null;
-    }
-    
-    if (!browserInstance) {
-        console.log('🚀 Launching browser...');
-        browserInstance = await puppeteer.launch({
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-blink-features=AutomationControlled',
-                '--disable-web-security',
-                '--disable-features=IsolateOrigins,site-per-process',
-                '--window-size=1280,800'
-            ]
-        });
-        browserLaunchTime = now;
-    }
-    return browserInstance;
-}
-
-// ============ FUNCTION TO CHECK IF URL IS FINAL ============
+// ============ CHECK IF URL IS FINAL ============
 function isFinalDownloadUrl(url) {
     if (!url) return false;
     const finalPatterns = [
@@ -103,20 +70,41 @@ function isIntermediateDomain(url) {
     }
 }
 
-// ============ MAIN EXTRACTION FUNCTION (NO STEALTH) ============
+// ============ BROWSER LAUNCH FUNCTION (SERVERLESS COMPATIBLE) ============
+async function getBrowser() {
+    // For serverless/cloud environments
+    const executablePath = await chromium.executablePath();
+    
+    const browser = await puppeteer.launch({
+        args: [
+            ...chromium.args,
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-blink-features=AutomationControlled',
+            '--window-size=1280,800'
+        ],
+        defaultViewport: chromium.defaultViewport,
+        executablePath: executablePath,
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
+    });
+    
+    return browser;
+}
+
+// ============ MAIN EXTRACTION FUNCTION ============
 async function extractDownloadUrl(ztUrl) {
+    let browser = null;
     let page = null;
     
     try {
         console.log(`🔗 Starting extraction from: ${ztUrl}`);
         
-        const browser = await getBrowser();
+        browser = await getBrowser();
         page = await browser.newPage();
         
-        // Set realistic viewport
-        await page.setViewport({ width: 1280, height: 800 });
-        
-        // Set extra headers to avoid detection
+        // Set realistic headers
         await page.setExtraHTTPHeaders({
             'Accept-Language': 'en-US,en;q=0.9',
             'Referer': 'https://cinesubz.lk/',
@@ -139,46 +127,44 @@ async function extractDownloadUrl(ztUrl) {
         
         while (step < maxSteps && !visitedUrls.has(currentUrl) && !isFinalDownloadUrl(currentUrl)) {
             visitedUrls.add(currentUrl);
-            
             console.log(`\n📌 Step ${step + 1}: ${currentUrl}`);
             
             // If we're on crn77.com, click the click here link
             if (currentUrl.includes('crn77.com')) {
                 console.log('🖱️ Clicking link on crn77.com...');
                 
-                // Wait for the clickable element
-                await page.waitForSelector('a', { timeout: 10000 });
-                
-                // Get all links and click the first one that looks like a download link
-                const links = await page.$$eval('a', elements => 
-                    elements.map(el => ({ href: el.href, text: el.textContent }))
-                );
-                
-                let clicked = false;
-                for (const link of links) {
-                    if (link.text.toLowerCase().includes('click') || 
-                        link.text.toLowerCase().includes('here') ||
-                        link.href) {
-                        await page.click(`a[href="${link.href}"]`);
-                        clicked = true;
-                        console.log(`✅ Clicked: ${link.text} -> ${link.href}`);
-                        break;
+                try {
+                    await page.waitForSelector('a', { timeout: 10000 });
+                    
+                    // Click the first link that looks clickable
+                    const clicked = await page.evaluate(() => {
+                        const links = document.querySelectorAll('a');
+                        for (const link of links) {
+                            const text = link.textContent.toLowerCase();
+                            const href = link.href;
+                            if (text.includes('click') || text.includes('here') || href) {
+                                link.click();
+                                return true;
+                            }
+                        }
+                        if (links.length > 0) {
+                            links[0].click();
+                            return true;
+                        }
+                        return false;
+                    });
+                    
+                    if (clicked) {
+                        console.log('✅ Clicked link on crn77.com');
+                        await page.waitForTimeout(3000);
+                        currentUrl = page.url();
+                        console.log(`📍 New URL: ${currentUrl}`);
                     }
+                } catch (e) {
+                    console.log('⚠️ Could not click on crn77.com:', e.message);
                 }
                 
-                if (!clicked && links.length > 0) {
-                    await page.click('a:first-child');
-                    console.log(`✅ Clicked first link`);
-                }
-                
-                // Wait for navigation
-                await page.waitForTimeout(3000);
-                currentUrl = page.url();
-                console.log(`📍 New URL: ${currentUrl}`);
-                
-                if (isFinalDownloadUrl(currentUrl)) {
-                    break;
-                }
+                if (isFinalDownloadUrl(currentUrl)) break;
                 step++;
                 continue;
             }
@@ -202,7 +188,7 @@ async function extractDownloadUrl(ztUrl) {
                     console.log('✅ Countdown finished');
                 }
             } catch (e) {
-                console.log('⚠️ No countdown found or already finished');
+                console.log('⚠️ No countdown found');
             }
             
             // Try to click download button
@@ -222,74 +208,28 @@ async function extractDownloadUrl(ztUrl) {
             }
             
             if (!clicked) {
-                // Try to click any link that might lead to download
                 await page.evaluate(() => {
                     const allLinks = document.querySelectorAll('a');
                     for (const link of allLinks) {
                         const href = link.href;
                         const text = link.textContent.toLowerCase();
-                        if (href && (href.includes('google.com/server') || 
-                                     href.includes('sonic-cloud') ||
-                                     text.includes('download') ||
-                                     text.includes('go to'))) {
+                        if (href && (href.includes('google.com/server') || href.includes('sonic-cloud') ||
+                            text.includes('download') || text.includes('go to'))) {
                             link.click();
                             return true;
                         }
                     }
                     return false;
                 });
-                console.log('✅ Clicked via JavaScript evaluation');
+                console.log('✅ Clicked via JavaScript');
             }
             
-            // Wait for navigation
             await page.waitForTimeout(3000);
+            currentUrl = page.url();
+            console.log(`📍 Updated URL: ${currentUrl}`);
             
-            // Check for new pages
-            const pages = await browser.pages();
-            for (const p of pages) {
-                const pUrl = p.url();
-                if (pUrl !== currentUrl && !visitedUrls.has(pUrl) && pUrl !== 'about:blank') {
-                    currentUrl = pUrl;
-                    console.log(`📌 New page detected: ${currentUrl}`);
-                    break;
-                }
-            }
-            
-            // Update current URL
-            const newUrl = page.url();
-            if (newUrl !== currentUrl) {
-                currentUrl = newUrl;
-                console.log(`📍 Updated URL: ${currentUrl}`);
-            }
-            
-            if (isFinalDownloadUrl(currentUrl)) {
-                break;
-            }
-            
+            if (isFinalDownloadUrl(currentUrl)) break;
             step++;
-        }
-        
-        // Extract URL from HTML if needed
-        if (!isFinalDownloadUrl(currentUrl)) {
-            const html = await page.content();
-            const patterns = [
-                /window\.location\.href\s*=\s*["']([^"']+)["']/i,
-                /var\s+link\s*=\s*["']([^"']+)["']/i,
-                /https?:\/\/[^\s"'<>]*(?:sonic-cloud|pixeldrain|drive\.google)[^\s"'<>]+/i
-            ];
-            
-            for (const pattern of patterns) {
-                const match = html.match(pattern);
-                if (match && match[1]) {
-                    let extracted = match[1];
-                    if (extracted.startsWith('/')) extracted = 'https://cinesubz.lk' + extracted;
-                    if (extracted.startsWith('http')) {
-                        console.log(`📌 Extracted from HTML: ${extracted}`);
-                        currentUrl = extracted;
-                        break;
-                    }
-                }
-            }
         }
         
         // Clean up URL
@@ -306,16 +246,18 @@ async function extractDownloadUrl(ztUrl) {
             if (filenameMatch) {
                 filename = decodeURIComponent(filenameMatch[1]);
             } else {
-                const title = await page.title();
-                if (title && !title.includes('Redirect')) {
-                    filename = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100) + '.mp4';
-                }
+                try {
+                    const title = await page.title();
+                    if (title && !title.includes('Redirect')) {
+                        filename = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100) + '.mp4';
+                    }
+                } catch (e) {}
             }
         }
         
-        await page.close();
+        await browser.close();
         
-        if (cleanUrl && !isIntermediateDomain(cleanUrl)) {
+        if (cleanUrl && !isIntermediateDomain(cleanUrl) && cleanUrl !== ztUrl) {
             return { 
                 success: true, 
                 url: cleanUrl,
@@ -329,7 +271,7 @@ async function extractDownloadUrl(ztUrl) {
         
     } catch (error) {
         console.error(`❌ Extraction error:`, error.message);
-        if (page) await page.close().catch(() => {});
+        if (browser) await browser.close().catch(() => {});
         return { success: false, error: error.message };
     }
 }
@@ -486,14 +428,13 @@ async function getMovieDetails(url) {
 }
 
 async function getPopularMovies() { return await getRecentMovies(1); }
-async function closeBrowser() { if (browserInstance) { await browserInstance.close(); browserInstance = null; } }
 
 // ============ ROUTES ============
 
 router.get('/', (req, res) => {
     res.json({
         success: true,
-        message: "🎬 CineSubz API - Working Without Stealth Plugin",
+        message: "🎬 CineSubz API - Serverless/Cloud Compatible",
         author: "Mr Thinuzz",
         endpoints: {
             "GET /extract?url=URL": "Extract final download URL",
@@ -549,8 +490,5 @@ router.get('/popular', async (req, res) => {
     const result = await getPopularMovies();
     res.json(result);
 });
-
-process.on('exit', async () => await closeBrowser());
-process.on('SIGINT', async () => { await closeBrowser(); process.exit(); });
 
 module.exports = router;
