@@ -14,19 +14,27 @@ app.use(express.json());
 // Serve static files from public directory
 app.use(express.static('public'));
 
-// Also explicitly serve JS files
+// Serve JS files explicitly
 app.use('/js', express.static('public'));
+app.use('/css', express.static('public/css'));
 
 // Auto-load all routes from routes/ folder
 const routesPath = path.join(__dirname, 'routes');
-const routeFiles = fs.readdirSync(routesPath).filter(file => file.endsWith('.js'));
+let routeFiles = [];
 
-routeFiles.forEach(file => {
-    const routeName = file.replace('.js', '');
-    const routeHandler = require(path.join(routesPath, file));
-    app.use(`/${routeName}`, routeHandler);
-    console.log(`✅ Loaded route: /${routeName}`);
-});
+if (fs.existsSync(routesPath)) {
+    routeFiles = fs.readdirSync(routesPath).filter(file => file.endsWith('.js'));
+    
+    routeFiles.forEach(file => {
+        const routeName = file.replace('.js', '');
+        const routeHandler = require(path.join(routesPath, file));
+        app.use(`/${routeName}`, routeHandler);
+        console.log(`✅ Loaded route: /${routeName}`);
+    });
+} else {
+    console.log('⚠️ Routes folder not found, creating...');
+    fs.mkdirSync(routesPath, { recursive: true });
+}
 
 // Health check with real-time stats
 app.get('/health', (req, res) => {
@@ -58,7 +66,7 @@ app.get('/server-stats', (req, res) => {
 app.get('/api-info', (req, res) => {
     res.json({
         name: "Mr Thinuzz Free APIs",
-        version: "2.0.0",
+        version: "3.1.0",
         author: "Mr Thinuzz",
         status: "online",
         timestamp: new Date().toISOString(),
@@ -73,12 +81,17 @@ app.get('/api-info', (req, res) => {
             "GET /health": "Server health & stats",
             "GET /server-stats": "Real-time server statistics",
             "GET /api-info": "This API information",
-            "GET /game/fitgirl-search?q=SEARCH": "Search games",
-            "GET /game/fitgirl-info?url=URL": "Get game info",
+            "GET /game/fitgirl-search?q=SEARCH": "Search games on FitGirl",
+            "GET /game/fitgirl-info?url=URL": "Get game info from FitGirl",
             "GET /game/fitgirl-download?url=URL": "Extract download link",
-            "GET /anime/search?q=TITLE": "Search anime",
+            "GET /anime/search?q=TITLE": "Search anime (Multi-source)",
             "GET /anime/popular": "Popular anime",
-            "GET /anime/info?id=ID": "Anime info"
+            "GET /anime/info?id=ID": "Anime info by ID",
+            "GET /movie/search?q=SEARCH": "Search movies on CineSubz",
+            "GET /movie/recent": "Recent movies",
+            "GET /movie/info?url=URL": "Movie details with download links",
+            "GET /movie/download?url=URL": "Extract movie download link",
+            "GET /movie/popular": "Popular movies"
         }
     });
 });
@@ -118,11 +131,11 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`
     ╔════════════════════════════════════════════════════╗
-    ║     🚀 MR THINUZZ REAL-TIME API SERVER             ║
+    ║     🚀 MR THINUZZ REAL-TIME API SERVER v3.1        ║
     ╠════════════════════════════════════════════════════╣
     ║  📍 URL: http://localhost:${PORT}                    ║
     ║  👤 Author: Mr Thinuzz                             ║
-    ║  📁 Routes: ${routeFiles.map(f => f.replace('.js', '')).join(', ')}                        ║
+    ║  📁 Routes: ${routeFiles.map(f => f.replace('.js', '')).join(', ')}     ║
     ║  ⚡ Status: Online - Real-time Ready               ║
     ║  ✨ Unlimited Requests - No API Key                ║
     ╚════════════════════════════════════════════════════╝
