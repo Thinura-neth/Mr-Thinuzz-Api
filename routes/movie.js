@@ -208,7 +208,7 @@ async function getRecentMovies(page = 1) {
     }
 }
 
-// Get movie details
+// ============ NEW: Get movie details ============
 async function getMovieDetails(url) {
     try {
         console.log(`🎬 Fetching movie details: ${url}`);
@@ -217,75 +217,235 @@ async function getMovieDetails(url) {
             timeout: 30000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5'
             }
         });
         
         const $ = cheerio.load(response.data);
         
-        // Extract Title
-        let title = $('.details-title h3, .content-title h1, h1').first().text().trim();
-        if (!title) title = $('title').text().replace(' – CineSubz.lk', '').replace(' - CineSubz.lk', '').trim();
+        // Title
+        let title = $('.details-title h3').first().text().trim();
+        if (!title) title = $('title').text().replace(' – CineSubz.lk - Sinhala Subtitles', '').replace(' | සිංහල උපසිරැසි සමඟ', '').trim();
         
-        // Extract Poster
-        let poster = $('.content-poster img, .poster-img').attr('src');
-        if (!poster) poster = $('.details-poster img').attr('src');
+        // Poster
+        let poster = $('.content-poster .poster-img').attr('src');
+        if (!poster) poster = $('.poster-img').attr('src');
+        if (poster && !poster.startsWith('http')) poster = 'https://cinesubz.net' + poster;
         
-        // Extract IMDb Rating
+        // Backdrop images
+        const backdropImages = [];
+        $('.content-gall .gall-item a').each((i, el) => {
+            const imgUrl = $(el).attr('href');
+            if (imgUrl && imgUrl.startsWith('http')) {
+                backdropImages.push(imgUrl);
+            }
+        });
+        
+        // IMDb Rating
         let imdbRating = null;
-        const imdbElement = $('.data-imdb, .imdb-rating-badge .imdb-score');
-        if (imdbElement.length) imdbRating = imdbElement.text().trim();
+        let imdbVotes = null;
+        const imdbElement = $('.data-imdb.v2');
+        if (imdbElement.length) {
+            const imdbText = imdbElement.text().trim();
+            const ratingMatch = imdbText.match(/IMDb:\s*([\d.]+)/i);
+            const votesMatch = imdbText.match(/\(([\d.]+K?)\)/i);
+            if (ratingMatch) imdbRating = ratingMatch[1];
+            if (votesMatch) imdbVotes = votesMatch[1];
+        }
         
-        // Extract Quality
-        let quality = null;
-        const qualityElement = $('.data-quality, .badge-quality-corner');
-        if (qualityElement.length) quality = qualityElement.text().trim();
+        // Quality
+        let quality = $('.data-quality').first().text().trim();
+        if (!quality) quality = $('.badge-quality-corner').first().text().trim();
         
-        // Extract Year
+        // Runtime
+        let runtime = null;
+        const durationElement = $('.data-views[itemprop="duration"]');
+        if (durationElement.length) {
+            runtime = durationElement.text().trim();
+        }
+        
+        // Year
         let year = null;
-        $('.details-info p, .info-details').each((i, el) => {
+        $('.info-col p, .details-info p').each((i, el) => {
             const text = $(el).text();
-            const yearMatch = text.match(/Year:\s*(\d{4})/i);
-            if (yearMatch) year = yearMatch[1];
+            if (text.includes('Year:')) {
+                const yearMatch = text.match(/Year:\s*(\d{4})/i);
+                if (yearMatch) year = yearMatch[1];
+            }
         });
         
-        // Extract Genres
-        let genres = [];
-        $('.details-genre a, .genres-list a, .data-genre a').each((i, el) => {
+        // Country
+        let country = null;
+        $('.info-col p, .details-info p').each((i, el) => {
+            const text = $(el).text();
+            if (text.includes('Country:')) {
+                country = text.replace('Country:', '').trim();
+            }
+        });
+        
+        // Directors
+        const directors = [];
+        $('.info-col p strong:contains("Director:")').each((i, el) => {
+            $(el).parent().find('a').each((j, a) => {
+                directors.push($(a).text().trim());
+            });
+        });
+        
+        // Subtitle By
+        let subtitleBy = null;
+        $('.info-col p').each((i, el) => {
+            const text = $(el).text();
+            if (text.includes('Subtitle By:')) {
+                subtitleBy = text.replace('Subtitle By:', '').trim();
+            }
+        });
+        
+        // Genres
+        const genres = [];
+        $('.details-genre a').each((i, el) => {
             const genre = $(el).text().trim();
-            if (genre && genre.length < 50) genres.push(genre);
+            if (genre && genre.length < 50 && !genres.includes(genre)) {
+                genres.push(genre);
+            }
         });
         
-        // Extract Description
+        // Cast
+        const cast = [];
+        $('.zt-cast-card').each((i, el) => {
+            const $card = $(el);
+            const name = $card.find('.zt-cast-name').text().trim();
+            const role = $card.find('.zt-cast-role').text().trim();
+            const image = $card.find('.zt-cast-image img').attr('src');
+            const castUrl = $card.find('.zt-cast-link').attr('href');
+            
+            if (name) {
+                cast.push({
+                    name: name,
+                    role: role || null,
+                    image: image || null,
+                    url: castUrl ? 'https://cinesubz.net' + castUrl : null
+                });
+            }
+        });
+        
+        // Description
         let description = '';
-        $('.details-desc p, .content-description p, .entry-content p').each((i, el) => {
+        $('.details-desc p').each((i, el) => {
             const text = $(el).text().trim();
-            if (text.length > 50 && text.length < 5000 && !text.includes('Download')) {
+            if (text.length > 50 && text.length < 5000 && !text.includes('Button එක ඔබලා')) {
                 description = text;
                 return false;
             }
         });
         
-        // Extract Download Links
+        // Tagline
+        let tagline = null;
+        const taglineElement = $('.movie-tagline-box .tagline-text');
+        if (taglineElement.length) {
+            tagline = taglineElement.text().trim();
+        }
+        
+        // Download Links
         const downloadLinks = [];
         
-        $('.movie-download-button, .links-table tbody tr a, .download-button, .btn-download').each((i, el) => {
+        $('.movie-download-button').each((i, el) => {
             const href = $(el).attr('href');
-            if (href && (href.includes('http') || href.includes('magnet'))) {
-                const text = $(el).text().trim();
+            const type = $(el).find('.movie-download-type').text().trim();
+            const meta = $(el).find('.movie-download-meta').text().trim();
+            
+            if (href && href.startsWith('https://cinesubz.net/zt-links/')) {
                 downloadLinks.push({
                     url: href,
-                    type: text || 'Download Link',
-                    host: extractHostFromUrl(href),
-                    filename: extractFilenameFromUrl(href)
+                    type: type || 'Direct & Telegram Download',
+                    meta: meta || null,
+                    host: 'cinesubz.net'
                 });
             }
         });
         
-        // Extract fuckingfast.co links
-        const fuckingFastLinks = downloadLinks.filter(link => link.url.includes('fuckingfast.co'));
+        $('.link-directandtgdownload .movie-download-link-item a').each((i, el) => {
+            const href = $(el).attr('href');
+            const meta = $(el).find('.movie-download-meta').text().trim();
+            
+            if (href && href.startsWith('https://cinesubz.net/zt-links/')) {
+                const exists = downloadLinks.some(link => link.url === href);
+                if (!exists) {
+                    downloadLinks.push({
+                        url: href,
+                        type: 'Direct & Telegram Download',
+                        meta: meta || null,
+                        host: 'cinesubz.net'
+                    });
+                }
+            }
+        });
         
-        // Remove duplicates
+        $('.links-table tbody tr td a').each((i, el) => {
+            const href = $(el).attr('href');
+            if (href && (href.includes('http') || href.includes('magnet')) && !href.includes('cinesubz.net/zt-links/')) {
+                const text = $(el).text().trim();
+                downloadLinks.push({
+                    url: href,
+                    type: text || 'Download Link',
+                    meta: null,
+                    host: extractHostFromUrl(href)
+                });
+            }
+        });
+        
+        // Players
+        const players = [];
+        $('.play-lists li.zetaflix_player_option').each((i, el) => {
+            const serverName = $(el).find('.opt-name').text().trim();
+            const serverTitle = $(el).find('.opt-titl').text().trim();
+            const isTrailer = $(el).attr('id') === 'player-option-trailer';
+            
+            players.push({
+                name: serverName || 'Server',
+                title: serverTitle || null,
+                is_trailer: isTrailer
+            });
+        });
+        
+        // Similar Movies
+        const similarMovies = [];
+        $('.similar-item, .related-item').each((i, el) => {
+            const $item = $(el);
+            const similarTitle = $item.find('.item-data h3, .data-title').text().trim();
+            const movieUrl = $item.find('.item-url, a').first().attr('href');
+            const similarPoster = $item.find('img').first().attr('src');
+            
+            if (similarTitle && movieUrl && movieUrl.includes('/movies/')) {
+                similarMovies.push({
+                    title: similarTitle,
+                    slug: extractMovieId(movieUrl),
+                    url: movieUrl,
+                    poster: similarPoster || null
+                });
+            }
+        });
+        
+        // SEO
+        const seo = {
+            canonical: $('link[rel="canonical"]').attr('href') || url,
+            og_image: $('meta[property="og:image"]').attr('content') || poster,
+            meta_description: $('meta[name="description"]').attr('content') || (description ? description.substring(0, 200) : null)
+        };
+        
+        // Keywords
+        const keywords = [];
+        $('.data-keywords-inline a, .content-keywords a').each((i, el) => {
+            const keyword = $(el).text().trim();
+            if (keyword && !keywords.includes(keyword)) {
+                keywords.push(keyword);
+            }
+        });
+        
+        // Clean title
+        const cleanTitle = title.replace(' Sinhala Subtitles | සිංහල උපසිරැසි සමඟ', '').trim();
+        
+        // Remove duplicate download links
         const uniqueDownloads = [];
         const seenUrls = new Set();
         for (const link of downloadLinks) {
@@ -300,17 +460,29 @@ async function getMovieDetails(url) {
             author: "Mr Thinuzz",
             timestamp: new Date().toISOString(),
             data: {
-                title: title || "Title not found",
+                title: cleanTitle,
+                original_title: title,
                 slug: extractMovieId(url),
                 url: url,
-                poster: poster || null,
-                imdb_rating: imdbRating,
-                quality: quality,
-                year: year,
-                genres: genres,
+                poster: poster,
+                backdrop_images: backdropImages,
+                tagline: tagline,
                 description: description,
+                imdb_rating: imdbRating,
+                imdb_votes: imdbVotes,
+                quality: quality,
+                runtime: runtime,
+                year: year,
+                country: country,
+                directors: directors,
+                subtitle_by: subtitleBy,
+                genres: genres,
+                cast: cast,
+                keywords: keywords,
                 download_links: uniqueDownloads,
-                fuckingfast_links: fuckingFastLinks
+                players: players,
+                similar_movies: similarMovies,
+                seo: seo
             }
         };
         
