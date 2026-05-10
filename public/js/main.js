@@ -63,7 +63,6 @@ function renderAPIsTab(cards) {
             <div class="api-icon"><i class="fas ${c.icon}" style="color:${c.color}"></i></div>
             <h3>${escapeHtml(c.name)}</h3>
             <p>${c.name_si || ''}</p>
-            <div class="api-endpoints-list">${(c.endpoints||[]).slice(0,3).map(() => `<span class="api-endpoint-tag">●</span>`).join('')}${c.endpoints?.length>3?`<span class="api-endpoint-tag">+${c.endpoints.length-3}</span>`:''}</div>
             <span class="api-badge">${c.endpoints?.length || 0} endpoints</span>
         </div>
     `).join('');
@@ -156,7 +155,6 @@ function showToast(msg) {
     const t = document.createElement('div');
     t.className = 'toast-notification';
     t.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
-    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--success);color:#fff;padding:12px 20px;border-radius:8px;z-index:10000;animation:slideIn 0.3s';
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
 }
@@ -168,22 +166,27 @@ function showError(msg) {
 
 function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 
-// Tab Navigation
+// ============ TAB NAVIGATION ============
 function switchTab(tabId) {
     currentTab = tabId;
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId)?.classList.add('active');
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.nav-tab[data-tab="${tabId}"]`)?.classList.add('active');
-    document.querySelectorAll('.mobile-nav-item[data-tab]').forEach(i => i.classList.remove('active'));
-    document.querySelector(`.mobile-nav-item[data-tab="${tabId}"]`)?.classList.add('active');
-    document.getElementById('mobileSidebar')?.classList.remove('open');
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('active');
+        if(item.getAttribute('data-tab') === tabId) item.classList.add('active');
+    });
     history.pushState(null, '', `#${tabId}`);
+    
+    // Close sidebar on mobile after selection
+    if(window.innerWidth <= 768) closeSidebar();
 }
 
 function switchToTabAndSelect(tabId, apiId) {
     switchTab(tabId);
-    setTimeout(() => { const sel = document.getElementById('apiSelect'); if(sel) { sel.value = apiId; sel.dispatchEvent(new Event('change')); } }, 100);
+    setTimeout(() => { 
+        const sel = document.getElementById('apiSelect'); 
+        if(sel) { sel.value = apiId; sel.dispatchEvent(new Event('change')); } 
+    }, 100);
 }
 
 function switchToTabAndTest(apiId, epName) {
@@ -199,19 +202,88 @@ function switchToTabAndTest(apiId, epName) {
     }, 100);
 }
 
-function toggleMobileMenu() { document.getElementById('mobileSidebar')?.classList.toggle('open'); }
+// ============ SIDEBAR FUNCTIONS ============
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const collapseIcon = document.getElementById('collapseIcon');
+    
+    if(window.innerWidth <= 768) {
+        // Mobile: toggle open/close
+        sidebar.classList.toggle('open');
+    } else {
+        // Desktop: toggle collapsed state
+        sidebar.classList.toggle('collapsed');
+        if(sidebar.classList.contains('collapsed')) {
+            collapseIcon.classList.remove('fa-chevron-left');
+            collapseIcon.classList.add('fa-chevron-right');
+        } else {
+            collapseIcon.classList.remove('fa-chevron-right');
+            collapseIcon.classList.add('fa-chevron-left');
+        }
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    }
+}
 
+function openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.add('open');
+    if(overlay) overlay.classList.add('show');
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    if(overlay) overlay.classList.remove('show');
+}
+
+// ============ INITIALIZATION ============
 document.addEventListener('DOMContentLoaded', () => {
-    loadStats(); loadAPIs();
-    document.querySelectorAll('.nav-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
-    document.querySelectorAll('.mobile-nav-item[data-tab]').forEach(i => i.addEventListener('click', () => switchTab(i.dataset.tab)));
+    loadStats(); 
+    loadAPIs();
+    
+    // Restore sidebar collapsed state on desktop
+    if(window.innerWidth > 768) {
+        const saved = localStorage.getItem('sidebarCollapsed');
+        if(saved === 'true') {
+            document.getElementById('sidebar')?.classList.add('collapsed');
+            const icon = document.getElementById('collapseIcon');
+            if(icon) {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    }
+    
+    // Sidebar item click handlers
+    document.querySelectorAll('.sidebar-item[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    
+    // Test button
     document.getElementById('testBtn')?.addEventListener('click', testAPI);
+    
+    // Hash handling
     const hash = window.location.hash.substring(1);
     if(['dashboard','apis','demo','docs'].includes(hash)) switchTab(hash);
     else switchTab('dashboard');
+    
+    // Close sidebar when clicking outside on mobile
     document.addEventListener('click', (e) => {
-        const sidebar = document.getElementById('mobileSidebar');
-        const btn = document.querySelector('.menu-btn');
-        if(sidebar?.classList.contains('open') && !sidebar.contains(e.target) && !btn?.contains(e.target)) sidebar.classList.remove('open');
+        const sidebar = document.getElementById('sidebar');
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        if(window.innerWidth <= 768 && sidebar?.classList.contains('open')) {
+            if(!sidebar.contains(e.target) && !menuBtn?.contains(e.target)) {
+                closeSidebar();
+            }
+        }
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if(window.innerWidth > 768) {
+            closeSidebar();
+        }
     });
 });
