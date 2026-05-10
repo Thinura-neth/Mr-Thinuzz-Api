@@ -26,7 +26,7 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header with Navigation Tabs -->
     <header>
         <div class="header-content">
             <div class="logo">
@@ -34,199 +34,187 @@
                 <h1>Mr Thinuzz <span>API</span></h1>
                 <small>v3.1</small>
             </div>
-            <nav>
-                <a href="#dashboard" class="active">Dashboard</a>
-                <a href="#apis">APIs</a>
-                <a href="#demo">Demo</a>
-                <a href="#docs">Docs</a>
-            </nav>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-tab" data-tab="apis">
+                    <i class="fas fa-plug"></i>
+                    <span>APIs</span>
+                </button>
+                <button class="nav-tab" data-tab="demo">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Demo</span>
+                </button>
+                <button class="nav-tab" data-tab="docs">
+                    <i class="fas fa-book"></i>
+                    <span>Docs</span>
+                </button>
+            </div>
             <button class="menu-btn" onclick="toggleMobileMenu()">
                 <i class="fas fa-bars"></i>
             </button>
         </div>
     </header>
 
-    <!-- Main App Container -->
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-user">
-                <div class="user-avatar">
-                    <i class="fas fa-user-astronaut"></i>
+    <!-- Mobile Sidebar (for mobile only) -->
+    <aside class="mobile-sidebar" id="mobileSidebar">
+        <div class="mobile-sidebar-header">
+            <div class="logo">
+                <i class="fas fa-terminal"></i>
+                <h1>Mr Thinuzz <span>API</span></h1>
+            </div>
+            <button class="close-sidebar" onclick="toggleMobileMenu()">×</button>
+        </div>
+        <div class="mobile-sidebar-nav">
+            <button class="mobile-nav-item active" data-tab="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="mobile-nav-item" data-tab="apis">
+                <i class="fas fa-plug"></i>
+                <span>APIs</span>
+            </button>
+            <button class="mobile-nav-item" data-tab="demo">
+                <i class="fas fa-play-circle"></i>
+                <span>Demo</span>
+            </button>
+            <button class="mobile-nav-item" data-tab="docs">
+                <i class="fas fa-book"></i>
+                <span>Docs</span>
+            </button>
+            <div class="mobile-divider"></div>
+            <button class="mobile-nav-item" onclick="window.open('/health', '_blank')">
+                <i class="fas fa-heartbeat"></i>
+                <span>Health Check</span>
+            </button>
+            <button class="mobile-nav-item" onclick="window.open('/server-stats', '_blank')">
+                <i class="fas fa-chart-line"></i>
+                <span>Server Stats</span>
+            </button>
+            <button class="mobile-nav-item" onclick="window.open('/api-info', '_blank')">
+                <i class="fas fa-info-circle"></i>
+                <span>API Info</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-cube"></i></div>
+                    <div class="stat-value" id="statApiCount">--</div>
+                    <div class="stat-label">Available APIs</div>
                 </div>
-                <div class="user-info">
-                    <h4>Mr Thinuzz</h4>
-                    <p>API Developer</p>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-code-branch"></i></div>
+                    <div class="stat-value" id="statEndpointCount">--</div>
+                    <div class="stat-label">Endpoints</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" id="statUptime">--</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-microchip"></i></div>
+                    <div class="stat-value" id="statMemory">--</div>
+                    <div class="stat-label">Memory Usage</div>
                 </div>
             </div>
-            <nav class="sidebar-nav">
-                <div class="sidebar-section-title">MAIN</div>
-                <a href="#dashboard" class="sidebar-item active" data-section="dashboard">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#apis" class="sidebar-item" data-section="apis">
-                    <i class="fas fa-plug"></i>
-                    <span>APIs</span>
-                </a>
-                <a href="#demo" class="sidebar-item" data-section="demo">
-                    <i class="fas fa-play-circle"></i>
-                    <span>Live Demo</span>
-                </a>
-                <a href="#docs" class="sidebar-item" data-section="docs">
-                    <i class="fas fa-book"></i>
-                    <span>Documentation</span>
-                </a>
-                
-                <div class="sidebar-divider"></div>
-                
-                <div class="sidebar-section-title">TOOLS</div>
-                <a href="/health" class="sidebar-item" target="_blank">
-                    <i class="fas fa-heartbeat"></i>
-                    <span>Health Check</span>
-                </a>
-                <a href="/server-stats" class="sidebar-item" target="_blank">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Server Stats</span>
-                </a>
-                <a href="/api-info" class="sidebar-item" target="_blank">
-                    <i class="fas fa-info-circle"></i>
-                    <span>API Info</span>
-                </a>
-                
-                <div class="sidebar-divider"></div>
-                
-                <div class="sidebar-section-title">RESOURCES</div>
-                <a href="/all-apis/cards" class="sidebar-item" target="_blank">
-                    <i class="fas fa-id-card"></i>
-                    <span>Cards API</span>
-                    <span class="sidebar-badge">JSON</span>
-                </a>
-                <a href="/all-apis" class="sidebar-item" target="_blank">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Aggregator</span>
-                    <span class="sidebar-badge">JSON</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <a href="#" class="sidebar-item" onclick="toggleTheme()">
-                    <i class="fas fa-moon"></i>
-                    <span>Dark Mode</span>
-                </a>
+
+            <!-- Changelog -->
+            <div class="changelog-section">
+                <div class="changelog-header">
+                    <i class="fas fa-history"></i>
+                    <h3>Changelog</h3>
+                </div>
+                <div class="changelog-item">
+                    <div class="changelog-version">v3.1.0</div>
+                    <div class="changelog-date">2025-01-15</div>
+                    <div class="changelog-content">
+                        Enhanced dashboard UI with tab navigation
+                        <ul>
+                            <li>Added tab-based navigation in header</li>
+                            <li>Improved responsive design for mobile</li>
+                            <li>Auto-generated API cards from config</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="changelog-item">
+                    <div class="changelog-version">v3.0.0</div>
+                    <div class="changelog-date">2025-01-10</div>
+                    <div class="changelog-content">
+                        Major update with new features
+                        <ul>
+                            <li>Added Movies API (CineSubz scraper)</li>
+                            <li>Added Games API (FitGirl repacks)</li>
+                            <li>Added Anime API (Jikan + AniList)</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-        </aside>
 
-        <!-- Sidebar Toggle Button -->
-        <button class="sidebar-toggle-btn" onclick="toggleSidebar()" id="sidebarToggleBtn">
-            <i class="fas fa-chevron-left" id="toggleIcon"></i>
-        </button>
-
-        <!-- Main Content -->
-        <main class="main-content" id="mainContent">
-            <!-- Dashboard Section -->
-            <section id="dashboard" class="content-section active">
-                <div class="dashboard-stats">
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-cube"></i></div>
-                        <div class="stat-value" id="statApiCount">--</div>
-                        <div class="stat-label">Available APIs</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-code-branch"></i></div>
-                        <div class="stat-value" id="statEndpointCount">--</div>
-                        <div class="stat-label">Endpoints</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                        <div class="stat-value" id="statUptime">--</div>
-                        <div class="stat-label">Uptime</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-microchip"></i></div>
-                        <div class="stat-value" id="statMemory">--</div>
-                        <div class="stat-label">Memory Usage</div>
-                    </div>
+            <!-- API Cards Section -->
+            <div id="apiCardsContainer" class="api-grid">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading API cards...</p>
                 </div>
+            </div>
+        </div>
 
-                <!-- Changelog -->
-                <div class="changelog-section">
-                    <div class="changelog-header">
-                        <i class="fas fa-history"></i>
-                        <h3>Changelog</h3>
-                    </div>
-                    <div class="changelog-item">
-                        <div class="changelog-version">v3.1.0</div>
-                        <div class="changelog-date">2024-01-15</div>
-                        <div class="changelog-content">
-                            Enhanced dashboard UI with vertical sidebar
-                            <ul>
-                                <li>Added collapsible sidebar navigation</li>
-                                <li>Improved responsive design</li>
-                                <li>Auto-generated API cards from config</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="changelog-item">
-                        <div class="changelog-version">v3.0.0</div>
-                        <div class="changelog-date">2024-01-10</div>
-                        <div class="changelog-content">
-                            Major update with new features
-                            <ul>
-                                <li>Added Movies API (CineSubz scraper)</li>
-                                <li>Added Games API (FitGirl repacks)</li>
-                                <li>Added Anime API (Jikan + AniList)</li>
-                            </ul>
-                        </div>
-                    </div>
+        <!-- APIs Tab -->
+        <div id="apis" class="tab-content">
+            <div id="apisContainer" class="api-grid">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading APIs...</p>
                 </div>
+            </div>
+        </div>
 
-                <!-- API Cards Section -->
-                <div id="apiCardsContainer" class="api-grid">
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Loading API cards...</p>
+        <!-- Demo Tab -->
+        <div id="demo" class="tab-content">
+            <div class="demo-container">
+                <div class="demo-controls">
+                    <select id="apiSelect" class="demo-select">
+                        <option value="">Select API</option>
+                    </select>
+                    <select id="endpointSelect" class="demo-select">
+                        <option value="">Select endpoint</option>
+                    </select>
+                    <div id="paramInput" class="param-input">
+                        <input type="text" placeholder="No parameters needed" disabled>
                     </div>
+                    <button id="testBtn" class="btn-primary">
+                        <i class="fas fa-play"></i> Test API
+                    </button>
                 </div>
-            </section>
+                <div class="demo-response">
+                    <div class="response-header">
+                        <span>Response</span>
+                        <i class="fas fa-copy" onclick="copyResponse()" style="cursor: pointer;"></i>
+                    </div>
+                    <pre id="responseOutput"><code>// Select an API and endpoint, then click Test API</code></pre>
+                </div>
+            </div>
+        </div>
 
-            <!-- API Demo Section -->
-            <section id="demo" class="content-section">
-                <div class="demo-container">
-                    <div class="demo-controls">
-                        <select id="apiSelect" class="demo-select">
-                            <option value="">Select API</option>
-                        </select>
-                        <select id="endpointSelect" class="demo-select">
-                            <option value="">Select endpoint</option>
-                        </select>
-                        <div id="paramInput" class="param-input">
-                            <input type="text" placeholder="No parameters needed" disabled>
-                        </div>
-                        <button id="testBtn" class="btn-primary">
-                            <i class="fas fa-play"></i> Test API
-                        </button>
-                    </div>
-                    <div class="demo-response">
-                        <div class="response-header">
-                            <span>Response</span>
-                            <i class="fas fa-copy" onclick="copyResponse()" style="cursor: pointer;"></i>
-                        </div>
-                        <pre id="responseOutput"><code>// Select an API and endpoint, then click Test API</code></pre>
-                    </div>
+        <!-- Docs Tab -->
+        <div id="docs" class="tab-content">
+            <div id="docsContainer">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading documentation...</p>
                 </div>
-            </section>
-
-            <!-- Documentation Section -->
-            <section id="docs" class="content-section">
-                <div id="docsContainer">
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Loading documentation...</p>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+            </div>
+        </div>
+    </main>
 
     <script src="js/main.js"></script>
 </body>
