@@ -3,8 +3,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const router = express.Router();
 
-// ============ HELPER FUNCTIONS ============
-
+// Helper: Extract filename from URL
 function extractFilenameFromUrl(url) {
     try {
         if (url.includes('#')) {
@@ -223,7 +222,7 @@ async function searchFitGirl(query) {
     }
 }
 
-// Main scraping function
+// Main scraping function for FitGirl
 async function scrapeFitGirl(url) {
     try {
         console.log(`🔄 Scraping: ${url}`);
@@ -377,7 +376,6 @@ async function scrapeFitGirl(url) {
 
 // ============ ROUTES ============
 
-// GET /game - Root info
 router.get('/', (req, res) => {
     res.json({
         status: true,
@@ -397,7 +395,6 @@ router.get('/', (req, res) => {
     });
 });
 
-// GET /game/fitgirl-search - Search endpoint
 router.get('/fitgirl-search', async (req, res) => {
     const { q } = req.query;
     
@@ -416,7 +413,6 @@ router.get('/fitgirl-search', async (req, res) => {
     res.json(result);
 });
 
-// GET /game/fitgirl-info - Game info endpoint
 router.get('/fitgirl-info', async (req, res) => {
     const { url } = req.query;
     
@@ -449,7 +445,6 @@ router.get('/fitgirl-info', async (req, res) => {
     res.json(result);
 });
 
-// GET /game/fitgirl-download - Download extractor
 router.get('/fitgirl-download', async (req, res) => {
     const { url } = req.query;
     
