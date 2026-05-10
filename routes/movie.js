@@ -123,12 +123,14 @@ async function extractZtLinks(ztUrl) {
                 console.log(`📌 Telegram link processed: ${finalUrl}`);
             }
             
-            // Apply server replacements for google.com links
-            if (finalUrl.includes('google.com')) {
-                const urlMappings = [
-                    { search: "https://google.com/server6/", replace: "https://bot3.sonic-cloud.online/server6/" }
-                ];
-                
+           const urlMappings = [
+    { search: "https://google.com/server1/", replace: "https://bot3.sonic-cloud.online/server1/" },
+    { search: "https://google.com/server2/", replace: "https://bot3.sonic-cloud.online/server2/" },
+    { search: "https://google.com/server3/", replace: "https://bot3.sonic-cloud.online/server3/" },
+    { search: "https://google.com/server4/", replace: "https://bot3.sonic-cloud.online/server4/" },
+    { search: "https://google.com/server5/", replace: "https://bot3.sonic-cloud.online/server5/" },
+    { search: "https://google.com/server6/", replace: "https://bot3.sonic-cloud.online/server6/" }
+];
                 let modifiedUrl = finalUrl;
                 for (const mapping of urlMappings) {
                     if (modifiedUrl.includes(mapping.search)) {
