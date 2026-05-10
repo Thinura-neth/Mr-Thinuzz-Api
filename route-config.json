@@ -42,7 +42,7 @@
           "path": "/download",
           "params": ["url"],
           "required_params": ["url"],
-          "example": "/movie/download?url=https://fuckingfast.co/...",
+          "example": "/movie/extract?url=https://cinesubz.net/zt-links/...",
           "description": "Extract direct download link from fuckingfast.co"
         },
         {
