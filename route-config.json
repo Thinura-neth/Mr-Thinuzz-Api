@@ -13,10 +13,10 @@
           "name": "Search Movies",
           "method": "GET",
           "path": "/search",
-          "params": ["q"],
+          "params": ["q", "page"],
           "required_params": ["q"],
           "example": "/movie/search?q=oppenheimer",
-          "description": "Search movies from CineSubz"
+          "description": "Search movies from CineSubz with Sinhala subtitles"
         },
         {
           "name": "Recent Movies",
@@ -33,8 +33,26 @@
           "path": "/info",
           "params": ["url"],
           "required_params": ["url"],
-          "example": "/movie/info?url=...",
-          "description": "Get detailed movie info"
+          "example": "/movie/info?url=https://cinesubz.net/movies/...",
+          "description": "Get detailed movie info with download links"
+        },
+        {
+          "name": "Movie Download",
+          "method": "GET",
+          "path": "/download",
+          "params": ["url"],
+          "required_params": ["url"],
+          "example": "/movie/download?url=https://fuckingfast.co/...",
+          "description": "Extract direct download link from fuckingfast.co"
+        },
+        {
+          "name": "Popular Movies",
+          "method": "GET",
+          "path": "/popular",
+          "params": [],
+          "required_params": [],
+          "example": "/movie/popular",
+          "description": "Get popular/trending movies"
         }
       ]
     },
@@ -53,7 +71,7 @@
           "params": ["q"],
           "required_params": ["q"],
           "example": "/game/fitgirl-search?q=cyberpunk",
-          "description": "Search FitGirl repacks"
+          "description": "Search games on FitGirl Repacks"
         },
         {
           "name": "Game Info",
@@ -61,8 +79,17 @@
           "path": "/fitgirl-info",
           "params": ["url"],
           "required_params": ["url"],
-          "example": "/game/fitgirl-info?url=...",
-          "description": "Get complete game info"
+          "example": "/game/fitgirl-info?url=https://fitgirl-repacks.site/...",
+          "description": "Get complete game info with download links"
+        },
+        {
+          "name": "Game Download",
+          "method": "GET",
+          "path": "/fitgirl-download",
+          "params": ["url"],
+          "required_params": ["url"],
+          "example": "/game/fitgirl-download?url=https://fuckingfast.co/...",
+          "description": "Extract direct download link from fuckingfast.co"
         }
       ]
     },
@@ -81,7 +108,7 @@
           "params": ["q"],
           "required_params": ["q"],
           "example": "/anime/search?q=naruto",
-          "description": "Multi-source anime search"
+          "description": "Multi-source anime search (Jikan + AniList)"
         },
         {
           "name": "Popular Anime",
@@ -90,7 +117,16 @@
           "params": [],
           "required_params": [],
           "example": "/anime/popular",
-          "description": "Get top anime"
+          "description": "Get top 20 popular anime"
+        },
+        {
+          "name": "Anime Info",
+          "method": "GET",
+          "path": "/info",
+          "params": ["id"],
+          "required_params": ["id"],
+          "example": "/anime/info?id=21",
+          "description": "Get detailed anime information by ID"
         }
       ]
     }
