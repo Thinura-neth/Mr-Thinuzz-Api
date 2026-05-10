@@ -362,11 +362,38 @@ class Dashboard {
         `;
     }
 
-    renderComingSoonContent(apiName) {
+    renderMovieSection() {
+    return `
+        <div class="api-section collapsed" data-section="movie">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-film"></i>
+                </div>
+                <h3 class="section-title">Movie API - CineSubz</h3>
+                <span class="section-badge">● Active</span>
+                <div class="section-arrow">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+            <div class="section-content">
+                <p class="section-desc">Complete CineSubz Movie API - Search, Info & Download endpoints with Sinhala Subtitles</p>
+                <div class="endpoints-grid">
+                    ${this.renderEndpointCard('GET', '/movie/search', 'Search for movies with Sinhala subtitles', '/movie/search?q=oppenheimer', this.getMovieSearchResponse())}
+                    ${this.renderEndpointCard('GET', '/movie/recent', 'Get recently added movies from CineSubz', '/movie/recent', this.getMovieRecentResponse())}
+                    ${this.renderEndpointCard('GET', '/movie/info', 'Get complete movie info with download links', '/movie/info?url=https://cinesubz.net/movies/dune-2021-sinhala-subtitles/', this.getMovieInfoResponse())}
+                    ${this.renderEndpointCard('GET', '/movie/download', 'Extract direct download link from fuckingfast.co', '/movie/download?url=https://fuckingfast.co/...', this.getMovieDownloadResponse())}
+                    ${this.renderEndpointCard('GET', '/movie/popular', 'Get popular/trending movies', '/movie/popular', this.getMoviePopularResponse())}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+
+   renderComingSoonContent(apiName) {
         const titles = {
             download: 'Download API',
             ai: 'AI API',
-            movie: 'Movie API',
             search: 'Search API',
             stalk: 'Stalk API'
         };
@@ -526,6 +553,118 @@ class Dashboard {
 }`;
     }
 
+getMovieSearchResponse() {
+    return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "timestamp": "2026-05-10T10:30:00.000Z",
+  "data": {
+    "query": "oppenheimer",
+    "page": 1,
+    "total_pages": 3,
+    "has_next_page": true,
+    "total_results": 12,
+    "results": [
+      {
+        "title": "Oppenheimer (2023) Sinhala Subtitles",
+        "slug": "oppenheimer-2023-sinhala-subtitles",
+        "url": "https://cinesubz.net/movies/oppenheimer-2023-sinhala-subtitles/",
+        "poster": "https://cinesubz.net/wp-content/uploads/2023/07/oppenheimer-poster.jpg",
+        "imdb_rating": "8.5",
+        "quality": "WEB-DL",
+        "language": "Sinhala Subtitles"
+      }
+    ]
+  }
+}`;
+}
+
+getMovieRecentResponse() {
+    return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "timestamp": "2026-05-10T10:30:00.000Z",
+  "data": {
+    "page": 1,
+    "total_pages": 209,
+    "has_next_page": true,
+    "total_movies": 30,
+    "movies": [
+      {
+        "title": "The Heavy (2009) Sinhala Subtitles",
+        "slug": "the-heavy-2009-sinhala-subtitles",
+        "url": "https://cinesubz.net/movies/the-heavy-2009-sinhala-subtitles/",
+        "poster": "https://cinesubz.net/wp-content/uploads/2026/05/poster.jpg",
+        "imdb_rating": "4.9",
+        "quality": "WEB-DL",
+        "language": "Sinhala Subtitles"
+      }
+    ]
+  }
+}`;
+}
+
+getMovieInfoResponse() {
+    return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "timestamp": "2026-05-10T10:30:00.000Z",
+  "data": {
+    "title": "Oppenheimer (2023) Sinhala Subtitles",
+    "slug": "oppenheimer-2023-sinhala-subtitles",
+    "url": "https://cinesubz.net/movies/oppenheimer-2023-sinhala-subtitles/",
+    "poster": "https://cinesubz.net/wp-content/uploads/2023/07/oppenheimer-poster.jpg",
+    "imdb_rating": "8.5",
+    "quality": "WEB-DL",
+    "year": "2023",
+    "runtime": "180 min",
+    "director": "Christopher Nolan",
+    "cast": ["Cillian Murphy", "Emily Blunt", "Matt Damon", "Robert Downey Jr."],
+    "genres": ["Biography", "Drama", "History"],
+    "description": "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
+    "trailer_url": "https://www.youtube.com/embed/...",
+    "download_links": [
+      {
+        "url": "https://fuckingfast.co/...",
+        "type": "1080p WEB-DL",
+        "meta": "10.5 GB",
+        "host": "fuckingfast.co",
+        "filename": "Oppenheimer.2023.1080p.mkv"
+      }
+    ]
+  }
+}`;
+}
+
+getMovieDownloadResponse() {
+    return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "timestamp": "2026-05-10T10:30:00.000Z",
+  "data": {
+    "original_url": "https://fuckingfast.co/...",
+    "download_url": "https://dl.fuckingfast.co/...",
+    "filename": "Oppenheimer.2023.1080p.mkv"
+  }
+}`;
+}
+
+getMoviePopularResponse() {
+    return `{
+  "status": true,
+  "author": "Mr Thinuzz",
+  "timestamp": "2026-05-10T10:30:00.000Z",
+  "data": {
+    "type": "popular",
+    "message": "Popular movies from CineSubz",
+    "page": 1,
+    "total_pages": 209,
+    "movies": [...]
+  }
+}`;
+}
+
+    
     async updateStats() {
         try {
             const startTime = performance.now();
@@ -811,7 +950,12 @@ class Dashboard {
             { method: 'GET', path: '/anime/info', description: 'Get complete anime information by ID' },
             { method: 'GET', path: '/health', description: 'Server health check' },
             { method: 'GET', path: '/server-stats', description: 'Real-time server statistics' },
-            { method: 'GET', path: '/api-info', description: 'API information and documentation' }
+            { method: 'GET', path: '/api-info', description: 'API information and documentation' },
+            { method: 'GET', path: '/movie/search', description: 'Search for movies with Sinhala subtitles' },
+            { method: 'GET', path: '/movie/recent', description: 'Get recently added movies from CineSubz' },
+            { method: 'GET', path: '/movie/info', description: 'Get complete movie info with download links' },
+            { method: 'GET', path: '/movie/download', description: 'Extract direct download link from fuckingfast.co' },
+            { method: 'GET', path: '/movie/popular', description: 'Get popular/trending movies' }
         ];
     }
 
