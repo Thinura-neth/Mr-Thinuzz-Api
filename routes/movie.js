@@ -40,6 +40,339 @@ function extractHostFromUrl(url) {
     }
 }
 
+// ============ EXTRACT CINESUBZ ZT-LINKS PAGE ============
+async function extractZtLinks(ztUrl) {
+    try {
+        console.log(`🔗 Extracting ZT-links from: ${ztUrl}`);
+        
+        const response = await axios.get(ztUrl, {
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Referer': 'https://cinesubz.net/'
+            }
+        });
+        
+        const html = response.data;
+        const $ = cheerio.load(html);
+        
+        let finalUrl = null;
+        let finalType = null;
+        let isTelegram = false;
+        
+        // Check for meta refresh redirect
+        const metaRefresh = $('meta[http-equiv="refresh"]').attr('content');
+        if (metaRefresh && metaRefresh.includes('url=')) {
+            const match = metaRefresh.match(/url=(.+)$/i);
+            if (match) {
+                finalUrl = decodeURIComponent(match[1]);
+                console.log(`📌 Found meta refresh URL: ${finalUrl}`);
+            }
+        }
+        
+        // Extract direct "Click Here" button link
+        const clickHereLink = $('.wait-done a').first().attr('href');
+        if (clickHereLink && clickHereLink !== '#') {
+            finalUrl = clickHereLink;
+            finalType = 'direct_click';
+            console.log(`📌 Found Click Here link: ${finalUrl}`);
+        }
+        
+        // Check for countdown timer
+        const hasCountdown = $('#countdown').length > 0;
+        
+        // Apply URL replacement logic (based on HTML analysis)
+        if (finalUrl && finalUrl.includes('google.com')) {
+            const urlMappings = [
+                { search: ["https://google.com/server11/1:/", "https://google.com/server12/1:/", "https://google.com/server13/1:/"], replace: "https://bot3.sonic-cloud.online/server1/" },
+                { search: ["https://google.com/server21/1:/", "https://google.com/server22/1:/", "https://google.com/server23/1:/"], replace: "https://bot3.sonic-cloud.online/server2/" },
+                { search: ["https://google.com/server3/1:/"], replace: "https://bot3.sonic-cloud.online/server3/" },
+                { search: ["https://google.com/server4/1:/"], replace: "https://bot3.sonic-cloud.online/server4/" },
+                { search: ["https://google.com/server5/1:/"], replace: "https://bot3.sonic-cloud.online/server5/" },
+                { search: ["https://google.com/server6/"], replace: "https://bot3.sonic-cloud.online/server6/" }
+            ];
+            
+            let modifiedUrl = finalUrl;
+            for (const mapping of urlMappings) {
+                for (const searchUrl of mapping.search) {
+                    if (modifiedUrl.includes(searchUrl)) {
+                        modifiedUrl = modifiedUrl.replace(searchUrl, mapping.replace);
+                        // Add extension parameter
+                        if (modifiedUrl.includes('.mp4') && !modifiedUrl.includes('?ext=')) {
+                            modifiedUrl = modifiedUrl.replace('.mp4', '?ext=mp4');
+                        } else if (modifiedUrl.includes('.mkv') && !modifiedUrl.includes('?ext=')) {
+                            modifiedUrl = modifiedUrl.replace('.mkv', '?ext=mkv');
+                        } else if (modifiedUrl.includes('.zip') && !modifiedUrl.includes('?ext=')) {
+                            modifiedUrl = modifiedUrl.replace('.zip', '?ext=zip');
+                        }
+                        finalUrl = modifiedUrl;
+                        finalType = 'replaced_download';
+                        console.log(`🔄 URL replaced: ${finalUrl}`);
+                        break;
+                    }
+                }
+                if (finalType === 'replaced_download') break;
+            }
+        }
+        
+        // Check for Telegram links
+        if (finalUrl && finalUrl.includes('t.me')) {
+            isTelegram = true;
+            finalType = 'telegram';
+            // Apply Telegram URL replacements
+            let tempUrl = finalUrl;
+            tempUrl = tempUrl.replace('srilank222', 'srilanka2222');
+            tempUrl = tempUrl.replace('https://tsadsdaas.me/', 'http://tdsdfasdaddd.me/');
+            finalUrl = tempUrl;
+            console.log(`📌 Telegram link: ${finalUrl}`);
+        }
+        
+        // Extract countdown time from meta refresh
+        let redirectTime = 70;
+        if (metaRefresh) {
+            const timeMatch = metaRefresh.match(/content="(\d+);/i);
+            if (timeMatch) {
+                redirectTime = parseInt(timeMatch[1]);
+            }
+        }
+        
+        // Extract filename from URL
+        let filename = null;
+        if (finalUrl) {
+            filename = extractFilenameFromUrl(finalUrl);
+        }
+        
+        return {
+            status: true,
+            data: {
+                original_url: ztUrl,
+                download_url: finalUrl,
+                filename: filename,
+                is_telegram: isTelegram,
+                has_countdown: hasCountdown,
+                redirect_time_seconds: redirectTime,
+                download_type: finalType || 'extracted'
+            }
+        };
+        
+    } catch (error) {
+        console.error(`❌ ZT-links extraction error:`, error.message);
+        return {
+            status: false,
+            error: `Failed to extract: ${error.message}`
+        };
+    }
+}
+
+// ============ EXTRACT GOOGLE DRIVE LINK ============
+async function extractGoogleDrive(url) {
+    try {
+        console.log(`📁 Extracting Google Drive link: ${url}`);
+        
+        // Extract file ID from various Google Drive URL formats
+        let fileId = null;
+        
+        // Pattern 1: /d/{fileId}
+        let match = url.match(/\/d\/([^\/?#]+)/);
+        if (match) fileId = match[1];
+        
+        // Pattern 2: id={fileId}
+        if (!fileId) {
+            match = url.match(/id=([^&?#]+)/);
+            if (match) fileId = match[1];
+        }
+        
+        // Pattern 3: /file/d/{fileId}
+        if (!fileId) {
+            match = url.match(/\/file\/d\/([^\/?#]+)/);
+            if (match) fileId = match[1];
+        }
+        
+        if (fileId) {
+            const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            return {
+                status: true,
+                data: {
+                    original_url: url,
+                    download_url: downloadUrl,
+                    file_id: fileId,
+                    host: 'drive.google.com',
+                    extraction_method: 'google_drive'
+                }
+            };
+        }
+        
+        return {
+            status: false,
+            error: "Could not extract Google Drive file ID"
+        };
+        
+    } catch (error) {
+        return {
+            status: false,
+            error: `Google Drive extraction failed: ${error.message}`
+        };
+    }
+}
+
+// ============ EXTRACT TELEGRAM LINK ============
+async function extractTelegramLink(url) {
+    try {
+        console.log(`📱 Processing Telegram link: ${url}`);
+        
+        // Apply the same replacements as in the HTML
+        let processedUrl = url;
+        processedUrl = processedUrl.replace('srilank222', 'srilanka2222');
+        processedUrl = processedUrl.replace('https://tsadsdaas.me/', 'http://tdsdfasdaddd.me/');
+        
+        return {
+            status: true,
+            data: {
+                original_url: url,
+                telegram_url: processedUrl,
+                is_telegram: true,
+                note: "Telegram links require manual access or bot interaction"
+            }
+        };
+        
+    } catch (error) {
+        return {
+            status: false,
+            error: `Telegram link processing failed: ${error.message}`
+        };
+    }
+}
+
+// ============ CHECK FOR DIRECT FILE LINK ============
+function isDirectFileLink(url) {
+    const fileExtensions = /\.(mp4|mkv|avi|mov|webm|flv|3gp|m4v|mpg|mpeg|wmv|zip|rar|7z|tar|gz)(\?|$)/i;
+    return fileExtensions.test(url);
+}
+
+// ============ MAIN DOWNLOAD FUNCTION ============
+async function extractDownloadUrl(inputUrl, recursive = true) {
+    console.log(`🎯 Starting download extraction for: ${inputUrl}`);
+    
+    let currentUrl = inputUrl;
+    let depth = 0;
+    const maxDepth = 3;
+    
+    while (depth < maxDepth) {
+        const hostname = extractHostFromUrl(currentUrl);
+        
+        // Case 1: Direct file link
+        if (isDirectFileLink(currentUrl)) {
+            return {
+                status: true,
+                data: {
+                    original_url: inputUrl,
+                    download_url: currentUrl,
+                    filename: extractFilenameFromUrl(currentUrl),
+                    host: hostname,
+                    extraction_method: 'direct_file',
+                    depth: depth
+                }
+            };
+        }
+        
+        // Case 2: CineSubz ZT-links page
+        if (hostname.includes('cinesubz.net') && currentUrl.includes('/zt-links/')) {
+            const result = await extractZtLinks(currentUrl);
+            if (result.status && result.data.download_url) {
+                // Check if we need to follow another redirect
+                const nextHost = extractHostFromUrl(result.data.download_url);
+                if (recursive && depth < maxDepth - 1 && 
+                    (nextHost.includes('cinesubz.net') || isDirectFileLink(result.data.download_url) === false)) {
+                    currentUrl = result.data.download_url;
+                    depth++;
+                    console.log(`🔁 Following redirect to: ${currentUrl}`);
+                    continue;
+                }
+                return result;
+            }
+            return result;
+        }
+        
+        // Case 3: Google Drive
+        else if (hostname.includes('drive.google.com')) {
+            const result = await extractGoogleDrive(currentUrl);
+            return result;
+        }
+        
+        // Case 4: Telegram links
+        else if (hostname.includes('t.me') || currentUrl.includes('telegram')) {
+            const result = await extractTelegramLink(currentUrl);
+            return result;
+        }
+        
+        // Case 5: Try to get any download link from the page
+        else {
+            try {
+                const response = await axios.get(currentUrl, {
+                    timeout: 30000,
+                    maxRedirects: 5,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                
+                const html = response.data;
+                const $ = cheerio.load(html);
+                
+                // Look for downloadable file links
+                let foundUrl = null;
+                $('a[href*=".mp4"], a[href*=".mkv"], a[href*=".zip"], a[href*=".rar"]').each((i, el) => {
+                    const href = $(el).attr('href');
+                    if (href && !foundUrl && href.startsWith('http')) {
+                        foundUrl = href;
+                    }
+                });
+                
+                if (foundUrl && isDirectFileLink(foundUrl)) {
+                    return {
+                        status: true,
+                        data: {
+                            original_url: inputUrl,
+                            download_url: foundUrl,
+                            filename: extractFilenameFromUrl(foundUrl),
+                            host: hostname,
+                            extraction_method: 'page_scan',
+                            depth: depth
+                        }
+                    };
+                }
+                
+                // Check meta refresh
+                const metaRefresh = $('meta[http-equiv="refresh"]').attr('content');
+                if (metaRefresh && metaRefresh.includes('url=')) {
+                    const match = metaRefresh.match(/url=(.+)$/i);
+                    if (match && recursive && depth < maxDepth - 1) {
+                        currentUrl = decodeURIComponent(match[1]);
+                        depth++;
+                        console.log(`🔁 Following meta refresh to: ${currentUrl}`);
+                        continue;
+                    }
+                }
+            } catch (e) {
+                console.log(`Page fetch error: ${e.message}`);
+            }
+            
+            return {
+                status: false,
+                error: `No download link found for ${hostname}`,
+                last_url: currentUrl
+            };
+        }
+    }
+    
+    return {
+        status: false,
+        error: `Maximum recursion depth (${maxDepth}) reached`,
+        last_url: currentUrl
+    };
+}
+
 // Search movies on CineSubz
 async function searchMovies(query, page = 1) {
     try {
@@ -208,7 +541,7 @@ async function getRecentMovies(page = 1) {
     }
 }
 
-// ============ NEW: Get movie details ============
+// Get movie details
 async function getMovieDetails(url) {
     try {
         console.log(`🎬 Fetching movie details: ${url}`);
@@ -496,77 +829,6 @@ async function getMovieDetails(url) {
     }
 }
 
-// Extract fuckingfast.co direct link
-async function extractFuckingFastDownload(url) {
-    try {
-        console.log(`🔄 Extracting download from: ${url}`);
-        
-        const response = await axios.get(url.split('#')[0], {
-            timeout: 30000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://fuckingfast.co/'
-            }
-        });
-        
-        const html = response.data;
-        const $ = cheerio.load(html);
-        let downloadUrl = null;
-        
-        // Meta refresh
-        const metaRefresh = $('meta[http-equiv="refresh"]').attr('content');
-        if (metaRefresh && metaRefresh.includes('url=')) {
-            const match = metaRefresh.match(/url=(.+)$/i);
-            if (match) downloadUrl = decodeURIComponent(match[1]);
-        }
-        
-        // Download button
-        if (!downloadUrl) {
-            const downloadBtn = $('a[class*="download"], .download-btn, .btn-download');
-            if (downloadBtn.length) downloadUrl = downloadBtn.first().attr('href');
-        }
-        
-        // Pattern matching
-        if (!downloadUrl) {
-            const patterns = [/https?:\/\/dl\.fuckingfast\.co\/[^\s"'<>]+/g, /https?:\/\/cdn\.fuckingfast\.co\/[^\s"'<>]+/g];
-            for (const pattern of patterns) {
-                const match = html.match(pattern);
-                if (match && match[0]) {
-                    downloadUrl = match[0];
-                    break;
-                }
-            }
-        }
-        
-        if (downloadUrl) {
-            if (!downloadUrl.startsWith('http')) downloadUrl = 'https://' + downloadUrl;
-            return {
-                status: true,
-                author: "Mr Thinuzz",
-                timestamp: new Date().toISOString(),
-                data: {
-                    original_url: url,
-                    download_url: downloadUrl,
-                    filename: extractFilenameFromUrl(url)
-                }
-            };
-        }
-        
-        return {
-            status: false,
-            error: "Could not extract direct download link",
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        return {
-            status: false,
-            error: `Failed to extract: ${error.message}`,
-            timestamp: new Date().toISOString()
-        };
-    }
-}
-
 // ============ ROUTES ============
 
 router.get('/', (req, res) => {
@@ -579,14 +841,14 @@ router.get('/', (req, res) => {
             "GET /movie/search?q=SEARCH": "Search movies on CineSubz",
             "GET /movie/recent": "Get recently added movies",
             "GET /movie/info?url=URL": "Get movie details with download links",
-            "GET /movie/download?url=URL": "Extract direct download link",
+            "GET /movie/extract?url=URL": "Extract direct download link from ZT-links",
             "GET /movie/popular": "Get popular movies"
         },
         examples: {
             search: "/movie/search?q=oppenheimer",
             recent: "/movie/recent",
             info: "/movie/info?url=https://cinesubz.net/movies/oppenheimer-2023-sinhala-subtitles/",
-            download: "/movie/download?url=https://fuckingfast.co/..."
+            extract: "/movie/extract?url=https://cinesubz.net/zt-links/12345/"
         }
     });
 });
@@ -639,30 +901,54 @@ router.get('/info', async (req, res) => {
     res.json(result);
 });
 
-router.get('/download', async (req, res) => {
-    const { url } = req.query;
+// ============ NEW: EXTRACT DOWNLOAD ENDPOINT ============
+router.get('/extract', async (req, res) => {
+    const { url, raw } = req.query;
+    
     if (!url) {
         return res.status(400).json({
             status: false,
             error: "URL parameter is required",
+            usage: "/movie/extract?url=https://cinesubz.net/zt-links/...",
             timestamp: new Date().toISOString()
         });
     }
+    
     let decodedUrl;
     try {
         decodedUrl = decodeURIComponent(url);
     } catch (e) {
         decodedUrl = url;
     }
-    if (!decodedUrl.includes('fuckingfast.co')) {
+    
+    // Validate URL
+    if (!decodedUrl.startsWith('http')) {
         return res.status(400).json({
             status: false,
-            error: "Only fuckingfast.co URLs are supported",
+            error: "Invalid URL. Must start with http:// or https://",
             timestamp: new Date().toISOString()
         });
     }
-    const result = await extractFuckingFastDownload(decodedUrl);
-    res.json(result);
+    
+    console.log(`📥 Download extraction request: ${decodedUrl}`);
+    
+    const result = await extractDownloadUrl(decodedUrl, raw !== 'true');
+    
+    if (result.status) {
+        res.json({
+            status: true,
+            author: "Mr Thinuzz",
+            timestamp: new Date().toISOString(),
+            data: result.data
+        });
+    } else {
+        res.status(404).json({
+            status: false,
+            error: result.error,
+            original_url: decodedUrl,
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 
 router.get('/popular', async (req, res) => {
