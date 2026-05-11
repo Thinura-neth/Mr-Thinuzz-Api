@@ -1,7 +1,6 @@
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
 const NodeCache = require('node-cache');
 const router = express.Router();
 
@@ -20,6 +19,23 @@ function extractMovieId(url) {
     return match ? match[1] : null;
 }
 
+function extractFilenameFromUrl(url) {
+    try {
+        if (url.includes('#')) {
+            return decodeURIComponent(url.split('#')[1]);
+        }
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart.includes('.')) {
+            return decodeURIComponent(lastPart);
+        }
+        return "unknown_file.mkv";
+    } catch (e) {
+        return "unknown_file.mkv";
+    }
+}
+
 function extractHostFromUrl(url) {
     try {
         const urlObj = new URL(url);
@@ -29,95 +45,11 @@ function extractHostFromUrl(url) {
     }
 }
 
-function isFinalDownloadUrl(url) {
-    if (!url) return false;
-    const finalPatterns = [
-        /\.(mp4|mkv|webm|avi|mov|m4v)(\?|$)/i,
-        /sonic-cloud\.online/i,
-        /pixeldrain\.com/i,
-        /drive\.google\.com/i,
-        /mega\.nz/i,
-        /mediafire\.com/i,
-        /googlevideo\.com/i
-    ];
-    for (const pattern of finalPatterns) {
-        if (pattern.test(url)) return true;
-    }
-    return false;
-}
-
-function isIntermediateDomain(url) {
-    try {
-        const hostname = new URL(url).hostname;
-        const intermediateDomains = ['crn77.com', 'cinesubz.lk', 'cinesubz.net', 'adstudio.cloud', 'google.com'];
-        return intermediateDomains.some(domain => hostname.includes(domain));
-    } catch {
-        return true;
-    }
-}
-
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ============ BROWSER MANAGEMENT ============
-let browserInstance = null;
-let browserBusy = false;
-let browserQueue = [];
-
-async function getBrowser() {
-    if (browserBusy) {
-        return new Promise((resolve) => {
-            browserQueue.push(resolve);
-        });
-    }
-    
-    browserBusy = true;
-    
-    try {
-        if (browserInstance && browserInstance.isConnected()) {
-            return browserInstance;
-        }
-        
-        console.log('🚀 Launching browser...');
-        
-        browserInstance = await puppeteer.launch({
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--window-size=1280,800',
-                '--disable-blink-features=AutomationControlled',
-                '--disable-features=IsolateOrigins,site-per-process'
-            ],
-            headless: 'new',
-            ignoreHTTPSErrors: true,
-            timeout: 60000
-        });
-        
-        return browserInstance;
-    } finally {
-        browserBusy = false;
-        if (browserQueue.length > 0) {
-            const next = browserQueue.shift();
-            next(await getBrowser());
-        }
-    }
-}
-
-async function closeBrowser() {
-    if (browserInstance && browserInstance.isConnected()) {
-        console.log('🔒 Closing browser...');
-        await browserInstance.close();
-        browserInstance = null;
-    }
-    browserQueue = [];
-    browserBusy = false;
-}
-
-// ============ EXTRACT FINAL DOWNLOAD URL FROM ZT-LINKS ============
+// ============ EXTRACT FINAL DOWNLOAD URL FROM ZT-LINKS (NO PUPPETEER) ============
 async function extractDownloadUrl(ztUrl, retryCount = 0) {
     const cachedUrl = cache.get(ztUrl);
     if (cachedUrl) {
@@ -125,188 +57,164 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
         return { success: true, url: cachedUrl };
     }
     
-    let page = null;
     const maxRetries = 2;
     
     try {
         console.log(`🔗 Extracting from: ${ztUrl} (attempt ${retryCount + 1})`);
         
-        const browser = await getBrowser();
-        page = await browser.newPage();
-        
-        page.setDefaultTimeout(45000);
-        page.setDefaultNavigationTimeout(45000);
-        
-        await page.setExtraHTTPHeaders({
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://cinesubz.lk/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        // First request to get the page
+        let response = await axios.get(ztUrl, {
+            timeout: 30000,
+            maxRedirects: 5,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
         });
         
-        await page.goto(ztUrl, { 
-            waitUntil: 'domcontentloaded',
-            timeout: 45000 
-        });
+        let currentUrl = response.request.res.responseUrl || ztUrl;
+        let html = response.data;
         
-        let currentUrl = page.url();
         console.log(`📍 Current URL: ${currentUrl}`);
         
-        if (isFinalDownloadUrl(currentUrl)) {
-            await page.close();
+        // Check if we already have a final URL
+        if (currentUrl.includes('sonic-cloud.online') || 
+            currentUrl.includes('.mp4') || 
+            currentUrl.includes('.mkv')) {
             cache.set(ztUrl, currentUrl);
             return { success: true, url: currentUrl };
         }
         
-        let maxSteps = 12;
-        let step = 0;
+        // Try multiple methods to extract download URL
+        let finalUrl = null;
         
-        while (step < maxSteps && !isFinalDownloadUrl(currentUrl)) {
-            console.log(`📌 Step ${step + 1}: ${currentUrl}`);
-            
-            if (currentUrl.includes('crn77.com')) {
-                console.log('🖱️ Processing crn77.com...');
-                try {
-                    await page.waitForSelector('a', { timeout: 10000 });
-                    
-                    await page.evaluate(() => {
-                        const links = document.querySelectorAll('a');
-                        for (const link of links) {
-                            const text = (link.textContent || '').toLowerCase();
-                            if (text.includes('click') || text.includes('here') || link.href) {
-                                link.click();
-                                return;
-                            }
-                        }
-                        if (links.length > 0) {
-                            links[0].click();
-                        }
-                    });
-                    
-                    console.log('✅ Clicked link on crn77.com');
-                    await delay(4000);
-                    currentUrl = page.url();
-                } catch (e) {
-                    console.log('⚠️ Error on crn77.com:', e.message);
-                    break;
-                }
-                
-                if (isFinalDownloadUrl(currentUrl)) break;
-                step++;
-                continue;
+        // Method 1: Meta refresh
+        const metaRefresh = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)/i);
+        if (metaRefresh && metaRefresh[1]) {
+            let redirectUrl = decodeURIComponent(metaRefresh[1]);
+            if (redirectUrl.startsWith('/')) {
+                redirectUrl = 'https://cinesubz.lk' + redirectUrl;
             }
+            console.log(`📌 Found meta refresh: ${redirectUrl}`);
             
             try {
-                const buttonExists = await page.$('#link');
-                if (buttonExists) {
-                    const isDisabled = await page.evaluate(() => {
-                        const btn = document.querySelector('#link');
-                        return btn && btn.hasAttribute('disabled');
-                    });
-                    
-                    if (isDisabled) {
-                        console.log('⏳ Countdown active, waiting...');
-                        await page.waitForFunction(
-                            () => {
-                                const btn = document.querySelector('#link');
-                                return btn && !btn.hasAttribute('disabled');
-                            },
-                            { timeout: 60000 }
-                        ).catch(() => {
-                            console.log('⚠️ Countdown timeout, proceeding anyway');
-                        });
-                        console.log('✅ Countdown finished or timed out');
-                    }
-                    
-                    await page.click('#link');
-                    console.log('✅ Clicked #link button');
-                    await delay(3000);
-                    currentUrl = page.url();
-                    
-                    if (isFinalDownloadUrl(currentUrl)) break;
-                    step++;
-                    continue;
-                }
+                const redirectResponse = await axios.get(redirectUrl, {
+                    maxRedirects: 10,
+                    timeout: 20000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                });
+                finalUrl = redirectResponse.request.res.responseUrl || redirectUrl;
             } catch (e) {
-                console.log('⚠️ #link button handling:', e.message);
+                finalUrl = redirectUrl;
             }
-            
-            const selectors = [
-                '.wait-done a', 
-                'a[href*="google.com/server"]', 
-                'a[href*="sonic-cloud"]', 
-                '.download-button',
-                'a[href*="googlevideo"]',
-                '.btn-download'
+        }
+        
+        // Method 2: Extract from JavaScript variables
+        if (!finalUrl) {
+            const patterns = [
+                /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+                /window\.location\.replace\s*\(\s*["']([^"']+)["']\s*\)/i,
+                /var\s+link\s*=\s*["']([^"']+)["']/i,
+                /var\s+downloadUrl\s*=\s*["']([^"']+)["']/i,
+                /data-url=["']([^"']+)["']/i,
+                /data-href=["']([^"']+)["']/i
             ];
             
-            let clicked = false;
-            for (const selector of selectors) {
-                try {
-                    const element = await page.$(selector);
-                    if (element) {
-                        await element.click();
-                        console.log(`✅ Clicked: ${selector}`);
-                        clicked = true;
-                        await delay(3000);
-                        currentUrl = page.url();
+            for (const pattern of patterns) {
+                const match = html.match(pattern);
+                if (match && match[1]) {
+                    let url = match[1];
+                    if (url.startsWith('/')) url = 'https://cinesubz.lk' + url;
+                    if (url.startsWith('http')) {
+                        finalUrl = url;
+                        console.log(`📌 Found in JS: ${finalUrl}`);
                         break;
                     }
-                } catch (err) {}
-            }
-            
-            if (!clicked) {
-                await page.evaluate(() => {
-                    const links = document.querySelectorAll('a');
-                    for (const link of links) {
-                        const href = link.href || '';
-                        const text = (link.textContent || '').toLowerCase();
-                        if (href && (href.includes('google.com/server') || 
-                            href.includes('sonic-cloud') ||
-                            href.includes('googlevideo') || 
-                            text.includes('download') || 
-                            text.includes('go to'))) {
-                            link.click();
-                            return;
-                        }
-                    }
-                });
-                console.log('✅ Clicked via JavaScript evaluation');
-                await delay(3000);
-                currentUrl = page.url();
-            }
-            
-            if (isFinalDownloadUrl(currentUrl)) break;
-            step++;
-        }
-        
-        let cleanUrl = currentUrl;
-        if (cleanUrl && !cleanUrl.startsWith('http')) {
-            if (cleanUrl.startsWith('//')) {
-                cleanUrl = 'https:' + cleanUrl;
-            } else if (cleanUrl.startsWith('/')) {
-                cleanUrl = 'https://cinesubz.lk' + cleanUrl;
+                }
             }
         }
         
-        await page.close();
+        // Method 3: Extract from anchor tags
+        if (!finalUrl) {
+            const $ = cheerio.load(html);
+            const links = [];
+            
+            $('a[href]').each((i, el) => {
+                const href = $(el).attr('href');
+                if (href && href.startsWith('http') && 
+                    !href.includes('cinesubz') && 
+                    !href.includes('adstudio') &&
+                    !href.includes('google.com') &&
+                    href.length > 10) {
+                    links.push(href);
+                }
+            });
+            
+            // Look for sonic-cloud or download links
+            for (const link of links) {
+                if (link.includes('sonic-cloud') || 
+                    link.includes('.mp4') || 
+                    link.includes('.mkv') ||
+                    link.includes('download')) {
+                    finalUrl = link;
+                    console.log(`📌 Found in anchor: ${finalUrl}`);
+                    break;
+                }
+            }
+            
+            if (!finalUrl && links.length > 0) {
+                finalUrl = links[0];
+                console.log(`📌 Using first external link: ${finalUrl}`);
+            }
+        }
         
-        if (cleanUrl && !isIntermediateDomain(cleanUrl) && cleanUrl !== ztUrl) {
-            cache.set(ztUrl, cleanUrl);
-            return { success: true, url: cleanUrl };
+        // Method 4: Direct regex for sonic-cloud URLs
+        if (!finalUrl) {
+            const sonicMatch = html.match(/https?:\/\/[^\s"'<>]*sonic-cloud[^\s"'<>]+/i);
+            if (sonicMatch) {
+                finalUrl = sonicMatch[0];
+                console.log(`📌 Found sonic-cloud URL: ${finalUrl}`);
+            }
+        }
+        
+        // Method 5: Check for crn77.com redirect
+        if (!finalUrl && currentUrl.includes('crn77.com')) {
+            const $ = cheerio.load(html);
+            const clickLink = $('a').first().attr('href');
+            if (clickLink && clickLink.startsWith('http')) {
+                try {
+                    const clickResponse = await axios.get(clickLink, {
+                        maxRedirects: 5,
+                        timeout: 15000,
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    });
+                    finalUrl = clickResponse.request.res.responseUrl || clickLink;
+                    console.log(`📌 Followed crn77.com link: ${finalUrl}`);
+                } catch (e) {
+                    finalUrl = clickLink;
+                }
+            }
+        }
+        
+        if (finalUrl && (finalUrl.includes('sonic-cloud') || 
+                         finalUrl.includes('.mp4') || 
+                         finalUrl.includes('.mkv'))) {
+            cache.set(ztUrl, finalUrl);
+            return { success: true, url: finalUrl };
         } else if (retryCount < maxRetries) {
             console.log(`🔄 Retrying... (${retryCount + 1}/${maxRetries})`);
             await delay(2000);
             return await extractDownloadUrl(ztUrl, retryCount + 1);
         } else {
-            return { success: false, error: 'Could not extract final download URL after retries' };
+            return { success: false, error: 'Could not extract download URL' };
         }
         
     } catch (error) {
-        console.error(`❌ Extraction error for ${ztUrl}:`, error.message);
-        if (page) await page.close().catch(() => {});
+        console.error(`❌ Extraction error:`, error.message);
         
         if (retryCount < maxRetries) {
-            console.log(`🔄 Retry due to error... (${retryCount + 1}/${maxRetries})`);
+            console.log(`🔄 Retry due to error...`);
             await delay(3000);
             return await extractDownloadUrl(ztUrl, retryCount + 1);
         }
@@ -499,7 +407,7 @@ async function getMovieDetails(url) {
             }
         });
         
-        // PRE-FETCH FINAL URLs
+        // PRE-FETCH FINAL URLs (without puppeteer)
         console.log(`🔗 Pre-fetching ${downloadLinks.length} download links...`);
         
         for (let i = 0; i < downloadLinks.length; i++) {
@@ -521,7 +429,7 @@ async function getMovieDetails(url) {
             }
             
             if (i < downloadLinks.length - 1) {
-                await delay(2000);
+                await delay(1500);
             }
         }
         
@@ -679,12 +587,12 @@ async function getRecentMovies(pageNum = 1) {
     }
 }
 
-// ============ ROUTES (API කියන කොටස නැතුව) ============
+// ============ ROUTES ============
 
 router.get('/', (req, res) => {
     res.json({
         status: true,
-        message: "🎬 CineSubz Movie API - Fully Fixed Version",
+        message: "🎬 CineSubz Movie API - Vercel Compatible (No Puppeteer)",
         author: "Mr Thinuzz",
         version: "4.0.0",
         endpoints: {
@@ -803,19 +711,6 @@ router.get('/recent', async (req, res) => {
     const pageNum = parseInt(req.query.page) || 1;
     const result = await getRecentMovies(pageNum);
     res.json(result);
-});
-
-// ============ CLEANUP ON EXIT ============
-process.on('exit', async () => await closeBrowser());
-process.on('SIGINT', async () => { 
-    console.log('🛑 Shutting down...');
-    await closeBrowser(); 
-    process.exit(0);
-});
-process.on('SIGTERM', async () => { 
-    console.log('🛑 Shutting down...');
-    await closeBrowser(); 
-    process.exit(0);
 });
 
 module.exports = router;
