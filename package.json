@@ -1,11 +1,12 @@
 {
   "name": "mr-thinuzz-api",
-  "version": "2.0.0",
-  "description": "Mr Thinuzz Free APIs - CineSubz Scraper | Search, Info, Download | No API Key",
+  "version": "3.0.0",
+  "description": "Mr Thinuzz Free APIs - CineSubz Scraper with Puppeteer | Search, Info, Download | No API Key",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -13,7 +14,8 @@
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.1.5",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "puppeteer": "^22.6.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -25,11 +27,12 @@
     "sinhala-subtitles",
     "api",
     "scraper",
-    "free-api"
+    "free-api",
+    "puppeteer"
   ],
   "author": "Mr Thinuzz",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }
