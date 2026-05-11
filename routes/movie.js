@@ -66,7 +66,6 @@ let browserBusy = false;
 let browserQueue = [];
 
 async function getBrowser() {
-    // If browser is busy, wait in queue
     if (browserBusy) {
         return new Promise((resolve) => {
             browserQueue.push(resolve);
@@ -101,7 +100,6 @@ async function getBrowser() {
         return browserInstance;
     } finally {
         browserBusy = false;
-        // Process next in queue
         if (browserQueue.length > 0) {
             const next = browserQueue.shift();
             next(await getBrowser());
@@ -121,7 +119,6 @@ async function closeBrowser() {
 
 // ============ EXTRACT FINAL DOWNLOAD URL FROM ZT-LINKS ============
 async function extractDownloadUrl(ztUrl, retryCount = 0) {
-    // Check cache first
     const cachedUrl = cache.get(ztUrl);
     if (cachedUrl) {
         console.log(`📦 Cache hit for: ${ztUrl}`);
@@ -137,7 +134,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
         const browser = await getBrowser();
         page = await browser.newPage();
         
-        // Set timeout for page operations
         page.setDefaultTimeout(45000);
         page.setDefaultNavigationTimeout(45000);
         
@@ -147,7 +143,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         });
         
-        // Navigate to the page
         await page.goto(ztUrl, { 
             waitUntil: 'domcontentloaded',
             timeout: 45000 
@@ -156,7 +151,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
         let currentUrl = page.url();
         console.log(`📍 Current URL: ${currentUrl}`);
         
-        // If already a final URL, return it
         if (isFinalDownloadUrl(currentUrl)) {
             await page.close();
             cache.set(ztUrl, currentUrl);
@@ -169,35 +163,28 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
         while (step < maxSteps && !isFinalDownloadUrl(currentUrl)) {
             console.log(`📌 Step ${step + 1}: ${currentUrl}`);
             
-            // Handle crn77.com
             if (currentUrl.includes('crn77.com')) {
                 console.log('🖱️ Processing crn77.com...');
                 try {
                     await page.waitForSelector('a', { timeout: 10000 });
                     
-                    const clicked = await page.evaluate(() => {
+                    await page.evaluate(() => {
                         const links = document.querySelectorAll('a');
                         for (const link of links) {
                             const text = (link.textContent || '').toLowerCase();
                             if (text.includes('click') || text.includes('here') || link.href) {
                                 link.click();
-                                return true;
+                                return;
                             }
                         }
                         if (links.length > 0) {
                             links[0].click();
-                            return true;
                         }
-                        return false;
                     });
                     
-                    if (clicked) {
-                        console.log('✅ Clicked link on crn77.com');
-                        await delay(4000);
-                        currentUrl = page.url();
-                    } else {
-                        break;
-                    }
+                    console.log('✅ Clicked link on crn77.com');
+                    await delay(4000);
+                    currentUrl = page.url();
                 } catch (e) {
                     console.log('⚠️ Error on crn77.com:', e.message);
                     break;
@@ -208,7 +195,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
                 continue;
             }
             
-            // Handle countdown button
             try {
                 const buttonExists = await page.$('#link');
                 if (buttonExists) {
@@ -231,7 +217,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
                         console.log('✅ Countdown finished or timed out');
                     }
                     
-                    // Click the button
                     await page.click('#link');
                     console.log('✅ Clicked #link button');
                     await delay(3000);
@@ -245,7 +230,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
                 console.log('⚠️ #link button handling:', e.message);
             }
             
-            // Try alternative selectors
             const selectors = [
                 '.wait-done a', 
                 'a[href*="google.com/server"]', 
@@ -267,13 +251,10 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
                         currentUrl = page.url();
                         break;
                     }
-                } catch (err) {
-                    // Continue
-                }
+                } catch (err) {}
             }
             
             if (!clicked) {
-                // JavaScript evaluation fallback
                 await page.evaluate(() => {
                     const links = document.querySelectorAll('a');
                     for (const link of links) {
@@ -298,7 +279,6 @@ async function extractDownloadUrl(ztUrl, retryCount = 0) {
             step++;
         }
         
-        // Clean up URL
         let cleanUrl = currentUrl;
         if (cleanUrl && !cleanUrl.startsWith('http')) {
             if (cleanUrl.startsWith('//')) {
@@ -351,7 +331,6 @@ async function getMovieDetails(url) {
         
         const html = response.data;
         
-        // Check if we got valid HTML
         if (!html || typeof html !== 'string') {
             return {
                 status: false,
@@ -362,7 +341,7 @@ async function getMovieDetails(url) {
         
         const $ = cheerio.load(html);
         
-        // ============ TITLE ============
+        // TITLE
         let title = $('.details-title h3').first().text().trim();
         if (!title) title = $('title').text().trim();
         if (!title) title = $('h1').first().text().trim();
@@ -381,13 +360,13 @@ async function getMovieDetails(url) {
             };
         }
         
-        // ============ POSTER ============
+        // POSTER
         let poster = $('.content-poster .poster-img').attr('src');
         if (!poster) poster = $('.poster-img').attr('src');
         if (!poster) poster = $('img[class*="poster"]').first().attr('src');
         if (poster && !poster.startsWith('http')) poster = 'https://cinesubz.net' + poster;
         
-        // ============ DESCRIPTION ============
+        // DESCRIPTION
         let description = '';
         $('.details-desc p').each((i, el) => {
             const text = $(el).text().trim();
@@ -401,7 +380,7 @@ async function getMovieDetails(url) {
             description = $('meta[name="description"]').attr('content') || '';
         }
         
-        // ============ IMDb RATING ============
+        // IMDB RATING
         let imdbRating = null;
         const imdbText = $('.data-imdb.v2, .data-imdb').first().text();
         const ratingMatch = imdbText.match(/(\d+\.?\d*)/);
@@ -412,12 +391,12 @@ async function getMovieDetails(url) {
             if (starRating) imdbRating = starRating;
         }
         
-        // ============ QUALITY ============
+        // QUALITY
         let quality = $('.data-quality').first().text().trim();
         if (!quality) quality = $('.badge-quality-corner').first().text().trim();
         if (!quality) quality = "WEB-DL";
         
-        // ============ YEAR ============
+        // YEAR
         let year = '';
         $('.info-col p, .details-info p').each((i, el) => {
             const text = $(el).text();
@@ -432,7 +411,7 @@ async function getMovieDetails(url) {
             if (yearMatch) year = yearMatch[1];
         }
         
-        // ============ CAST ============
+        // CAST
         const cast = [];
         $('.zt-cast-card, .cast-item, .actor-item').each((i, el) => {
             const $card = $(el);
@@ -447,10 +426,9 @@ async function getMovieDetails(url) {
             }
         });
         
-        // ============ DOWNLOAD LINKS ============
+        // DOWNLOAD LINKS
         const downloadLinks = [];
         
-        // Method 1: movie-download-button
         $('.movie-download-button').each((i, el) => {
             const $item = $(el);
             let qualityText = $item.find('.movie-download-type').text().trim();
@@ -475,7 +453,6 @@ async function getMovieDetails(url) {
             }
         });
         
-        // Method 2: link-directandtgdownload
         $('.link-directandtgdownload .movie-download-link-item a').each((i, el) => {
             const ztLink = $(el).attr('href');
             const parentText = $(el).parent().text();
@@ -503,7 +480,6 @@ async function getMovieDetails(url) {
             }
         });
         
-        // Method 3: links-table
         $('.links-table tbody tr').each((i, el) => {
             const $row = $(el);
             const qualityText = $row.find('td:first-child').text().trim();
@@ -523,7 +499,7 @@ async function getMovieDetails(url) {
             }
         });
         
-        // ============ Pre-fetch final download URLs ============
+        // PRE-FETCH FINAL URLs
         console.log(`🔗 Pre-fetching ${downloadLinks.length} download links...`);
         
         for (let i = 0; i < downloadLinks.length; i++) {
@@ -544,16 +520,13 @@ async function getMovieDetails(url) {
                 link.final_link = null;
             }
             
-            // Delay between requests
             if (i < downloadLinks.length - 1) {
                 await delay(2000);
             }
         }
         
-        // Filter out links where final_link is null
         const validDownloadLinks = downloadLinks.filter(link => link.final_link !== null);
         
-        // ============ RESPONSE ============
         return {
             status: true,
             data: {
@@ -706,7 +679,7 @@ async function getRecentMovies(pageNum = 1) {
     }
 }
 
-// ============ ROUTES ============
+// ============ ROUTES (API කියන කොටස නැතුව) ============
 
 router.get('/', (req, res) => {
     res.json({
@@ -721,15 +694,14 @@ router.get('/', (req, res) => {
             "GET /recent?page=1": "Get recently added movies"
         },
         examples: {
-            info: "/info?q=https://cinesubz.net/movies/guns-blazin-2024-sinhala-subtitles/",
-            extract: "/extract?url=https://cinesubz.net/zt-links/tvlajmluno/",
-            search: "/search?q=guns%20blazin",
+            info: "/info?q=https://cinesubz.net/movies/example/",
+            extract: "/extract?url=https://cinesubz.net/zt-links/example/",
+            search: "/search?q=example",
             recent: "/recent"
         }
     });
 });
 
-// ============ INFO ENDPOINT ============
 router.get('/info', async (req, res) => {
     const { q, url } = req.query;
     const targetUrl = q || url;
@@ -738,7 +710,7 @@ router.get('/info', async (req, res) => {
         return res.status(400).json({
             status: false,
             error: "URL parameter 'q' or 'url' is required",
-            example: "/info?q=https://cinesubz.net/movies/example/"
+            example: "/info?q=https://cinesubz.net/movies/guns-blazin-2024-sinhala-subtitles/"
         });
     }
     
@@ -768,7 +740,6 @@ router.get('/info', async (req, res) => {
     res.json(result);
 });
 
-// ============ EXTRACT ENDPOINT ============
 router.get('/extract', async (req, res) => {
     const { url } = req.query;
     
@@ -812,7 +783,6 @@ router.get('/extract', async (req, res) => {
     }
 });
 
-// ============ SEARCH ENDPOINT ============
 router.get('/search', async (req, res) => {
     const { q, page } = req.query;
     
@@ -829,7 +799,6 @@ router.get('/search', async (req, res) => {
     res.json(result);
 });
 
-// ============ RECENT ENDPOINT ============
 router.get('/recent', async (req, res) => {
     const pageNum = parseInt(req.query.page) || 1;
     const result = await getRecentMovies(pageNum);
