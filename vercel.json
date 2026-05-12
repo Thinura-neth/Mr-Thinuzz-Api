@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "server.js": {
+    "index.js": {
       "maxDuration": 10
     }
   },
@@ -20,43 +20,43 @@
     },
     {
       "src": "/game/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/anime/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/movie/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/download/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/search/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/ai/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/stalk/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/health",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/server-stats",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/api-info",
-      "dest": "/server.js"
+      "dest": "/index.js"
     },
     {
       "src": "/",
@@ -64,7 +64,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/server.js"
+      "dest": "/index.js"
     }
   ]
 }
