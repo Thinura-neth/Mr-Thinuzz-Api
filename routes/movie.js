@@ -408,99 +408,225 @@ async function scrapeMovieInfo(movieUrl) {
     }
 }
 
-// ============ EXTRACT DOWNLOAD (UPDATED - Supports all URLs) ============
-async function extractDownload(downloadUrl) {
-    const cacheKey = `download_${downloadUrl}`;
+// ============ ORIGINAL DOWNLOAD FUNCTION (from your Next.js project) ============
+const protobuf = require('protobufjs');
+const CryptoJS = require('crypto-js');
+
+function hexToBytes(hexString) {
+    if (hexString.length % 2 !== 0) throw new Error("Hex string must have even length");
+    const bytes = new Uint8Array(hexString.length / 2);
+    for (let i = 0; i < hexString.length; i += 2) {
+        bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+    return bytes;
+}
+
+function base64ToUtf8(base64) {
+    return Buffer.from(base64, "base64").toString("utf8");
+}
+
+function decrypt(encryptedText, secretKey) {
+    try {
+        const bytes = CryptoJS.AES.decrypt(encryptedText, secretKey);
+        const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+        if (!decryptedText) {
+            throw new Error("Decryption failed");
+        }
+        return decryptedText;
+    } catch (err) {
+        console.error(`Decryption failed: ${err.message}`);
+        return null;
+    }
+}
+
+function getLastBodyScript(html) {
+    const $ = cheerio.load(html);
+    const scripts = $("body script");
+    return scripts.length === 0 ? null : $(scripts[scripts.length - 2]).html()?.trim() || null;
+}
+
+function extractDownloadArray(jsCode) {
+    try {
+        const match = jsCode.match(/\[\s*\{[\s\S]*?id['"]?\s*:[\s\S]*?\}\s*\]/);
+        if (!match) return null;
+        return JSON.parse(match[0].replace(/'/g, '"').replace(/,\s*}/g, "}"));
+    } catch (err) {
+        console.error("Extraction failed:", err);
+        return null;
+    }
+}
+
+function extractDecryptKey(jsCode) {
+    try {
+        let result = { payload: null, decryptKey: null };
+        const payloadMatch = jsCode.match(/decrypt\(\s*['"](U2FsdGVkX[^'"]+)['"]/);
+        if (payloadMatch && payloadMatch.length >= 2) {
+            result.payload = payloadMatch[1];
+        }
+        const keyMatch = jsCode.match(/decrypt\([^,]+,\s*['"]([^'"]+)['"]\)/g);
+        if (keyMatch && keyMatch.length > 0) {
+            for (let match of keyMatch) {
+                const innerMatch = match.match(/['"]([^'"]+)['"]\)$/);
+                if (innerMatch && innerMatch[1] !== 'kasun' && innerMatch[1] !== 'base64') {
+                    result.decryptKey = innerMatch[1];
+                    break;
+                }
+            }
+        }
+        return result;
+    } catch (err) {
+        console.error("Extraction failed:", err);
+        return { payload: null, decryptKey: null };
+    }
+}
+
+function getDownloadEnc(decryptKey) {
+    const protoText = base64ToUtf8(decrypt(decryptKey, 'kasun'));
+    const root = protobuf.parse(protoText, { keepCase: true }).root;
+    return root.lookupType("responceEnc.DownloadData");
+}
+
+async function extractCookie() {
+    const res = await axios.get(`${DOWNLOAD_SITE_BASE}/server2/`, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9"
+        }
+    });
+    const cookies = res.headers["set-cookie"];
+    if (!cookies) throw new Error("Cookie not found");
+    return cookies.split(";")[0].trim();
+}
+
+// Main download function - මේක ඔයාගේ original logic එකටම සමානයි
+async function cineSubzDownload(downloadPageUrl) {
+    const cacheKey = `cinesubz_download_${downloadPageUrl}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     try {
-        let finalUrl = downloadUrl;
-        let isDirect = isDirectDownloadUrl(downloadUrl);
+        console.log(`🔐 Processing CineSubz download page: ${downloadPageUrl}`);
         
-        console.log(`📥 Processing URL: ${downloadUrl}`);
-        console.log(`📥 Is direct download: ${isDirect}`);
+        // Step 1: Extract cookie
+        const cookie = await extractCookie();
         
-        // If it's already a direct download URL
-        if (isDirect) {
-            console.log(`✅ Already direct download URL`);
-            
-            // Apply replacement for Google URLs
-            if (downloadUrl.includes("google.com")) {
-                finalUrl = await replaceUrl(downloadUrl);
-            }
-            
-            // Clean bot3 URLs
-            if (downloadUrl.includes('bot3.sonic-cloud.online')) {
-                if (!downloadUrl.includes('?ext=')) {
-                    const extMatch = downloadUrl.match(/\.(mp4|mkv|zip)/i);
-                    if (extMatch) {
-                        const ext = extMatch[1].toLowerCase();
-                        finalUrl = downloadUrl + (downloadUrl.includes('?') ? `&ext=${ext}` : `?ext=${ext}`);
-                    }
-                }
-            }
-            
-            const result = {
-                status: true,
-                data: {
-                    original_url: downloadUrl,
-                    download_url: finalUrl,
-                    is_direct: true,
-                    message: "This is a direct download URL. You can use it immediately."
-                }
-            };
-            
-            cache.set(cacheKey, result);
-            return result;
-        }
-        
-        // For cinesubz URLs, extract the link
-        if (downloadUrl.includes('cinesubz.lk') || downloadUrl.includes('cinesubz.net')) {
-            console.log(`📥 Extracting from CineSubz page`);
-            
-            const { data: html } = await axios.get(downloadUrl, {
-                timeout: 30000,
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        const headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cookie": cookie
+        };
+
+        // Step 2: Get the page HTML
+        let html, script;
+        for (let i = 0; i < 3; i++) {
+            const res = await axios.get(downloadPageUrl, { 
+                headers: { ...headers, "Upgrade-Insecure-Requests": "1" },
+                timeout: 30000
             });
-            
-            const $ = cheerio.load(html);
-            const directLink = $("#link").attr("href")?.trim();
-            
-            if (directLink) {
-                finalUrl = directLink;
-                console.log(`📥 Found direct link: ${finalUrl}`);
-                
-                if (finalUrl.includes("google.com")) {
-                    finalUrl = await replaceUrl(finalUrl);
-                    console.log(`📥 After replacement: ${finalUrl}`);
-                }
-            }
+            html = res.data;
+            script = getLastBodyScript(html);
+            if (script) break;
         }
+
+        if (!script) throw new Error("Script tag not found");
+
+        // Step 3: Extract data from script
+        const downloadArray = extractDownloadArray(script);
+        const cryptoData = extractDecryptKey(script);
+
+        if (!downloadArray || !cryptoData?.decryptKey) {
+            throw new Error("Failed to extract data or key");
+        }
+
+        // Step 4: Setup protobuf
+        const downloadEncType = getDownloadEnc(cryptoData.payload);
+
+        // Step 5: Process each download item
+        const downloadUrls = await Promise.all(
+            downloadArray.map(async (item) => {
+                try {
+                    const postRes = await axios.post(downloadPageUrl, hexToBytes(item.data), {
+                        headers: { ...headers, "Content-Type": "application/octet-stream" },
+                        responseType: 'arraybuffer',
+                        timeout: 30000
+                    });
+
+                    let decoded = downloadEncType.toObject(
+                        downloadEncType.decode(new Uint8Array(postRes.data))
+                    );
+
+                    if (decoded.url) {
+                        decoded.url = base64ToUtf8(decrypt(decoded.url, cryptoData.decryptKey));
+                    }
+                    return decoded;
+                } catch (err) {
+                    console.error(`Item failed: ${err.message}`);
+                    return null;
+                }
+            })
+        );
+
+        const validUrls = downloadUrls.filter(Boolean);
         
+        // Step 6: Apply URL replacement if needed
+        const processedUrls = await Promise.all(
+            validUrls.map(async (item) => {
+                if (item.url && item.url.includes("google.com")) {
+                    item.url = await replaceUrl(item.url);
+                }
+                return item;
+            })
+        );
+
         const result = {
             status: true,
             data: {
-                original_url: downloadUrl,
-                download_url: finalUrl,
-                is_direct: isDirect,
-                processed_at: new Date().toISOString()
+                original_page: downloadPageUrl,
+                download_urls: processedUrls,
+                total_links: processedUrls.length
             }
         };
-        
+
         cache.set(cacheKey, result);
         return result;
-        
+
     } catch (error) {
-        console.error(`❌ Extract error: ${error.message}`);
+        console.error(`Download failed: ${error.message}`);
         return {
             status: false,
-            error: `Failed to process: ${error.message}`,
-            original_url: downloadUrl,
-            suggestion: "If this is a direct download URL, try using it directly in your browser."
+            error: error.message,
+            original_page: downloadPageUrl
         };
     }
 }
+
+// ============ NEW ENDPOINT for original download function ============
+router.get('/cinesubz-download', async (req, res) => {
+    const { url, q } = req.query;
+    const targetUrl = q || url;
+    
+    if (!targetUrl) {
+        return res.status(400).json({
+            status: false,
+            error: "Missing 'url' parameter",
+            usage: "/movie/cinesubz-download?url=https://cinesubz.lk/zt-links/..."
+        });
+    }
+    
+    let decoded = decodeURIComponent(targetUrl);
+    
+    // This endpoint only works for CineSubz download pages
+    if (!decoded.includes('cinesubz.lk') && !decoded.includes('cinesubz.net')) {
+        return res.status(400).json({
+            status: false,
+            error: "This endpoint only works with CineSubz download pages",
+            suggestion: "Use /movie/extract for direct URLs or /movie/info for movie pages"
+        });
+    }
+    
+    const result = await cineSubzDownload(decoded);
+    res.json(result);
+});
 
 // ============ VALIDATE/CHECK URL ============
 async function checkUrl(url) {
