@@ -3,50 +3,251 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const NodeCache = require('node-cache');
+const crypto = require('crypto-js');
+const protobuf = require('protobufjs');
 const router = express.Router();
 
-// Cache (TTL: 1 hour)
+// Cache
 const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
-// ============ CONSTANTS ============
+// Constants
 const CINESUBZ_BASE = "https://cinesubz.lk/";
 const CINESUBZ_FAKE_BASE = "https://cinesubz.net/";
 const DOWNLOAD_SITE_BASE = "https://bot3.sonic-cloud.online";
 
-// Direct download domains (bypass validation)
-const DIRECT_DOWNLOAD_DOMAINS = [
-    'bot3.sonic-cloud.online',
-    'bot3.sonic-cloud.com',
-    'google.com',
-    'drive.google.com',
-    'fuckingfast.co',
-    'gdtot.com',
-    'linkvertise.com',
-    'mediafire.com',
-    'mega.nz',
-    'terabox.com',
-    'anonfiles.com',
-    'pixeldrain.com'
-];
+// ============ DOWNLOAD.JS FUNCTIONS (Original logic) ============
 
-// Helper: clean text
-function cleanText(text) {
-    if (!text) return '';
-    return text.replace(/\s+/g, ' ').trim();
+// Base64 to UTF8
+function base64ToUtf8(base64) {
+    return Buffer.from(base64, "base64").toString("utf8");
 }
 
-// Helper: extract movie slug from URL
-function extractMovieId(url) {
-    const match = url.match(/\/movies\/([^\/?#]+)/);
-    return match ? match[1] : null;
+// AES Decrypt
+function decrypt(encryptedText, secretKey) {
+    try {
+        const bytes = crypto.AES.decrypt(encryptedText, secretKey);
+        const decryptedText = bytes.toString(crypto.enc.Utf8);
+        if (!decryptedText) {
+            throw new Error("Decryption failed");
+        }
+        return decryptedText;
+    } catch (err) {
+        console.error(`Decryption failed: ${err.message}`);
+        return null;
+    }
 }
 
-// Helper: check if URL is direct download
-function isDirectDownloadUrl(url) {
-    return DIRECT_DOWNLOAD_DOMAINS.some(domain => url.toLowerCase().includes(domain));
+// Hex to Bytes
+function hexToBytes(hexString) {
+    if (hexString.length % 2 !== 0) throw new Error("Hex string must have even length");
+    const bytes = new Uint8Array(hexString.length / 2);
+    for (let i = 0; i < hexString.length; i += 2) {
+        bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+    return bytes;
 }
 
-// ============ SEARCH MOVIES ============
+// Get last body script from HTML
+function getLastBodyScript(html) {
+    const $ = cheerio.load(html);
+    const scripts = $("body script");
+    if (scripts.length === 0) return null;
+    return $(scripts[scripts.length - 2]).html()?.trim() || null;
+}
+
+// Extract download array from JS
+function extractDownloadArray(jsCode) {
+    try {
+        const match = jsCode.match(/\[\s*\{[\s\S]*?id['"]?\s*:[\s\S]*?\}\s*\]/);
+        if (!match) return null;
+        return JSON.parse(match[0].replace(/'/g, '"').replace(/,\s*}/g, "}"));
+    } catch (err) {
+        console.error("Extraction failed:", err);
+        return null;
+    }
+}
+
+// Extract decrypt key and payload
+function extractDecryptKey(jsCode) {
+    try {
+        let result = { payload: null, decryptKey: null };
+
+        const payloadMatch = jsCode.match(/decrypt\(\s*['"](U2FsdGVkX[^'"]+)['"]/);
+        if (payloadMatch && payloadMatch.length >= 2) {
+            result.payload = payloadMatch[1];
+        }
+
+        const keyMatch = jsCode.match(/decrypt\([^,]+,\s*['"]([^'"]+)['"]\)/g);
+        
+        if (keyMatch && keyMatch.length > 0) {
+            for (let match of keyMatch) {
+                const innerMatch = match.match(/['"]([^'"]+)['"]\)$/);
+                if (innerMatch && innerMatch[1] !== 'kasun' && innerMatch[1] !== 'base64') {
+                    result.decryptKey = innerMatch[1];
+                    break;
+                }
+            }
+            
+            const specificKeyMatch = jsCode.match(/\.url\s*=\s*base64ToUtf8\(decrypt\([^,]+,\s*['"]([^'"]+)['"]\)\)/);
+            if (specificKeyMatch && specificKeyMatch.length >= 2) {
+                result.decryptKey = specificKeyMatch[1];
+            }
+        }
+
+        return result;
+    } catch (err) {
+        console.error("Extraction failed:", err);
+        return { payload: null, decryptKey: null };
+    }
+}
+
+// Get DownloadEnc Proto
+function getDownloadEnc(decryptKey) {
+    const protoText = base64ToUtf8(decrypt(decryptKey, 'kasun'));
+    const root = protobuf.parse(protoText, { keepCase: true }).root;
+    return root.lookupType("responceEnc.DownloadData");
+}
+
+// Extract cookie
+async function extractCookie() {
+    const res = await fetch(`${DOWNLOAD_SITE_BASE}/server2/`, {
+        headers: {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9"
+        }
+    });
+    const cookies = res.headers.get("set-cookie");
+    if (!cookies) throw new Error("Cookie not found");
+    return cookies.split(";")[0].trim();
+}
+
+// ============ MAIN DOWNLOAD FUNCTION (From your download.js) ============
+async function getDirectDownloadUrl(pageUrl) {
+    const cacheKey = `download_${pageUrl}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        console.log(`🔐 Processing protected download: ${pageUrl}`);
+        
+        // Extract cookie
+        const cookie = await extractCookie();
+        
+        const headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cookie": cookie
+        };
+
+        // Get page HTML
+        let html, script;
+        for (let i = 0; i < 3; i++) {
+            const res = await fetch(pageUrl, { headers: { ...headers, "Upgrade-Insecure-Requests": "1" } });
+            if (!res.ok) throw new Error(`GET failed: ${res.status}`);
+            html = await res.text();
+            script = getLastBodyScript(html);
+            if (script) break;
+        }
+
+        if (!script) throw new Error("Script tag not found");
+
+        // Extract title and size
+        const $ = cheerio.load(html);
+        const title = $(".file-info:nth-child(1)").text().replace("File Name:", "").trim();
+        const size = $(".file-info:nth-child(2)").text().replace("File Size:", "").trim();
+
+        // Simple deobfuscation (since we don't have synchrony, use regex)
+        let deobfuscated = script;
+        
+        // Extract crypto data
+        const cryptoData = extractDecryptKey(deobfuscated);
+        const downloadArray = extractDownloadArray(deobfuscated);
+
+        if (!downloadArray || !cryptoData?.decryptKey) {
+            throw new Error("Failed to extract data or key");
+        }
+
+        const downloadEncType = getDownloadEnc(cryptoData.payload);
+
+        const downloadUrls = await Promise.all(
+            downloadArray.map(async (item) => {
+                try {
+                    const postRes = await fetch(pageUrl, {
+                        method: "POST",
+                        headers: { ...headers, "Content-Type": "application/octet-stream" },
+                        body: hexToBytes(item.data)
+                    });
+
+                    if (!postRes.ok) return null;
+
+                    let decoded = downloadEncType.toObject(
+                        downloadEncType.decode(new Uint8Array(await postRes.arrayBuffer()))
+                    );
+
+                    if (decoded.url) {
+                        decoded.url = base64ToUtf8(decrypt(decoded.url, cryptoData.decryptKey));
+                    }
+                    return decoded;
+                } catch (err) {
+                    console.error("Item failed:", err.message);
+                    return null;
+                }
+            })
+        );
+
+        const validUrls = downloadUrls.filter(Boolean);
+        
+        const result = {
+            status: true,
+            data: {
+                title: title,
+                size: size,
+                download_urls: validUrls,
+                original_page: pageUrl
+            }
+        };
+
+        cache.set(cacheKey, result);
+        return result;
+
+    } catch (error) {
+        console.error(`Download extraction failed: ${error.message}`);
+        return {
+            status: false,
+            error: error.message,
+            original_page: pageUrl
+        };
+    }
+}
+
+// ============ REGULAR EXTRACT (For already direct URLs) ============
+async function extractDirectUrl(url) {
+    const cacheKey = `direct_${url}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Check if it's a CineSubz protected page
+    if (url.includes('/zt-links/') || (url.includes('cinesubz') && !url.includes('/movies/'))) {
+        console.log(`🔐 Protected page detected, using full extraction: ${url}`);
+        const result = await getDirectDownloadUrl(url);
+        cache.set(cacheKey, result);
+        return result;
+    }
+    
+    // For already direct URLs
+    const result = {
+        status: true,
+        data: {
+            url: url,
+            is_direct: true,
+            message: "This appears to be a direct download URL"
+        }
+    };
+    cache.set(cacheKey, result);
+    return result;
+}
+
+// ============ SEARCH FUNCTIONS ============
 async function searchMovies(query, pageNum = 1) {
     const cacheKey = `search_${query}_${pageNum}`;
     const cached = cache.get(cacheKey);
@@ -56,7 +257,7 @@ async function searchMovies(query, pageNum = 1) {
         const searchUrl = `https://cinesubz.lk/page/${pageNum}/?s=${encodeURIComponent(query)}`;
         const { data } = await axios.get(searchUrl, {
             timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0' }
         });
         
         const $ = cheerio.load(data);
@@ -66,16 +267,13 @@ async function searchMovies(query, pageNum = 1) {
             const title = $(el).find(".item-box > a").attr("title");
             const movieUrl = $(el).find(".item-box > a").attr("href");
             const poster = $(el).find("img").attr("src");
-            const imdb = $(el).find(".rating:nth-child(1)").text().replace("IMDB ", "").trim();
             const year = movieUrl?.match(/\d{4}/)?.[0];
             
             if (title && movieUrl && movieUrl.includes('/movies/')) {
                 results.push({
                     title: cleanText(title),
-                    slug: extractMovieId(movieUrl),
                     url: movieUrl,
                     poster: poster || null,
-                    imdb: imdb || null,
                     year: year || null
                 });
             }
@@ -84,13 +282,11 @@ async function searchMovies(query, pageNum = 1) {
         const result = { success: true, data: { query, page: pageNum, results, total: results.length } };
         cache.set(cacheKey, result);
         return result;
-        
     } catch (error) {
         return { success: false, error: error.message };
     }
 }
 
-// ============ RECENT MOVIES ============
 async function getRecentMovies(pageNum = 1) {
     const cacheKey = `recent_${pageNum}`;
     const cached = cache.get(cacheKey);
@@ -98,11 +294,7 @@ async function getRecentMovies(pageNum = 1) {
 
     try {
         const url = pageNum === 1 ? 'https://cinesubz.lk/movies/' : `https://cinesubz.lk/movies/page/${pageNum}/`;
-        const { data } = await axios.get(url, {
-            timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        
+        const { data } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const $ = cheerio.load(data);
         const movies = [];
         
@@ -114,7 +306,6 @@ async function getRecentMovies(pageNum = 1) {
             if (title && movieUrl && movieUrl.includes('/movies/')) {
                 movies.push({
                     title: cleanText(title),
-                    slug: extractMovieId(movieUrl),
                     url: movieUrl,
                     poster: poster || null
                 });
@@ -124,569 +315,120 @@ async function getRecentMovies(pageNum = 1) {
         const result = { success: true, data: { page: pageNum, movies, total: movies.length } };
         cache.set(cacheKey, result);
         return result;
-        
     } catch (error) {
         return { success: false, error: error.message };
     }
 }
 
-// ============ POPULAR MOVIES ============
-async function getPopularMovies() {
-    const cacheKey = 'popular_movies';
+async function getMovieInfo(movieUrl) {
+    const cacheKey = `info_${movieUrl}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     try {
-        const { data } = await axios.get('https://cinesubz.lk/movies/', {
-            timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        
-        const $ = cheerio.load(data);
-        const movies = [];
-        
-        $(".display-item").each((i, el) => {
-            const title = $(el).find(".item-box > a").attr("title");
-            const movieUrl = $(el).find(".item-box > a").attr("href");
-            const poster = $(el).find("img").attr("src");
-            const rating = $(el).find(".rating").first().text().trim();
-            
-            if (title && movieUrl && movieUrl.includes('/movies/')) {
-                movies.push({
-                    title: cleanText(title),
-                    slug: extractMovieId(movieUrl),
-                    url: movieUrl,
-                    poster: poster || null,
-                    rating: rating || null
-                });
-            }
-        });
-        
-        movies.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        
-        const result = { success: true, data: { movies: movies.slice(0, 20), total: Math.min(movies.length, 20) } };
-        cache.set(cacheKey, result);
-        return result;
-        
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-// ============ REPLACE URL FUNCTION ============
-async function replaceUrl(originalUrl) {
-    try {
-        if (!originalUrl) return originalUrl;
-
-        const urlMappings = [
-            {
-                search: ["https://google.com/server11/1:/", "https://google.com/server12/1:/", "https://google.com/server13/1:/"],
-                replace: `${DOWNLOAD_SITE_BASE}/server1/`
-            },
-            {
-                search: ["https://google.com/server21/1:/", "https://google.com/server22/1:/", "https://google.com/server23/1:/"],
-                replace: `${DOWNLOAD_SITE_BASE}/server2/`
-            },
-            { search: ["https://google.com/server3/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server3/` },
-            { search: ["https://google.com/server4/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server4/` },
-            { search: ["https://google.com/server5/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server5/` },
-            { search: ["https://google.com/server6/"], replace: `${DOWNLOAD_SITE_BASE}/server6/` }
-        ];
-
-        let modifiedUrl = originalUrl;
-        let urlChanged = false;
-
-        for (const mapping of urlMappings) {
-            for (const searchUrl of mapping.search) {
-                if (originalUrl.includes(searchUrl)) {
-                    modifiedUrl = originalUrl.replace(searchUrl, mapping.replace);
-                    urlChanged = true;
-                    break;
-                }
-            }
-            if (urlChanged) break;
-        }
-
-        // Extension fixes
-        if (modifiedUrl.includes(".mp4?bot=cscloud2bot&code=")) {
-            modifiedUrl = modifiedUrl.replace(".mp4?bot=cscloud2bot&code=", "?ext=mp4&bot=cscloud2bot&code=");
-        } else if (modifiedUrl.includes(".mp4")) {
-            modifiedUrl = modifiedUrl.replace(".mp4", "?ext=mp4");
-        } else if (modifiedUrl.includes(".mkv?bot=cscloud2bot&code=")) {
-            modifiedUrl = modifiedUrl.replace(".mkv?bot=cscloud2bot&code=", "?ext=mkv&bot=cscloud2bot&code=");
-        } else if (modifiedUrl.includes(".mkv")) {
-            modifiedUrl = modifiedUrl.replace(".mkv", "?ext=mkv");
-        } else if (modifiedUrl.includes(".zip")) {
-            modifiedUrl = modifiedUrl.replace(".zip", "?ext=zip");
-        }
-
-        return modifiedUrl;
-    } catch (error) {
-        console.error("Replace URL error:", error.message);
-        return originalUrl;
-    }
-}
-
-// ============ GET DOWNLOAD LINKS ============
-async function getDownloadUrls($) {
-    const rows = [];
-
-    $(".link-wrapper div div").each((index, element) => {
-        let metaText = $(element).find(".movie-download-meta").text().trim();
-        if (!metaText) {
-            metaText = $(element).find(".download-meta").text().trim();
-        }
-
-        const meta = metaText.split("•");
-        const quality = meta[0]?.trim();
-        const size = meta[1]?.trim();
-        const language = meta[2]?.trim();
-
-        let link = $(element).find("a").attr("href");
-        if (link) {
-            link = link.replace("cinesubz.net", "cinesubz.lk");
-            rows.push({ quality, size, language, link });
-        }
-    });
-
-    const detailedUrls = await Promise.all(
-        rows.map(async (item) => {
-            try {
-                const detailResponse = await axios.get(item.link, {
-                    timeout: 30000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-                });
-                const $detail = cheerio.load(detailResponse.data);
-                
-                let finalLink = $detail("#link").attr("href")?.trim();
-                
-                if (finalLink && finalLink.includes("google.com")) {
-                    finalLink = await replaceUrl(finalLink);
-                }
-                
-                return {
-                    quality: item.quality,
-                    size: item.size,
-                    language: item.language,
-                    url: finalLink || item.link
-                };
-            } catch (err) {
-                console.error(`Error loading ${item.link}: ${err.message}`);
-                return {
-                    quality: item.quality,
-                    size: item.size,
-                    language: item.language,
-                    url: item.link
-                };
-            }
-        })
-    );
-
-    return detailedUrls;
-}
-
-// ============ SCRAPE MOVIE INFO ============
-async function scrapeMovieInfo(movieUrl) {
-    const cacheKey = `movie_${movieUrl}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return cached;
-
-    try {
-        console.log(`🎬 Scraping: ${movieUrl}`);
         const { data: html } = await axios.get(movieUrl, {
             timeout: 30000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+            headers: { 'User-Agent': 'Mozilla/5.0' }
         });
-
         const $ = cheerio.load(html);
 
-        let title = $(".details-title h3").text().trim();
+        const title = $(".details-title h3").text().trim();
+        const poster = $(".poster-img").attr("src");
+        const description = $('#info div[itemprop="description"]').text().trim();
         
-        let maintitle = title.replace(
-            /(Sinhala Subtitles?\s*\|\s*සිංහල උපසිරැසි සමඟ|Sinhala Subtitles?|with Sinhala Subtitles?|සිංහල උපසිරැසි\s*සමඟ|\|\s*සිංහල උපසිරැසි(?:\s*සමඟ)?)/gi,
-            ""
-        ).trim();
-
-        const yearMatch = movieUrl.match(/\d{4}/);
-        const releaseYear = yearMatch ? yearMatch[0] : null;
-
-        const country = $(".details-info div:nth-child(2) p:nth-child(3) span").text().trim();
-        const runtime = $(".content-col.right div div.details-data span:nth-child(3)").text().trim();
-
-        let mainImage = $(".poster-img").attr("src");
-        if (mainImage) {
-            mainImage = mainImage.replace("fit=", "fit")
-                .replace(/-\d+x\d+\.jpg$/, ".jpg")
-                .replace(CINESUBZ_FAKE_BASE, CINESUBZ_BASE);
-        }
-
-        const categorydata = $(".details-genre a").text().trim();
-        const genres = categorydata.match(/([A-Z][a-z]+|\d+\+?)/g) || [];
-
-        const directorName = $("#cast div:nth-child(3) div div.data div.name a").text().trim();
-        const directorUrl = $("#cast div:nth-child(3) div div.data div.name a").attr("href");
-
-        const ratingValue = $(".sheader .starstruck-rating .dt_rating_vgs").text().trim() || "0";
-        const ratingCount = $(".sheader .starstruck-rating .rating-count").text().trim() || "0";
-
-        const imdbrating = $(".data-imdb.v2").text().replace("IMDb:", "").trim() || "0";
-        const imdbratingCount = $(".votes-count").text().replace("votes", "").trim() || "0";
-
-        const description = $('#info div[itemprop="description"]')
-            .clone()
-            .find("script")
-            .remove()
-            .end()
-            .text()
-            .trim();
-
-        const cast = [];
-        $(".zt-cast-card").each((i, el) => {
-            const actorName = $(el).find(".zt-cast-name").text().trim();
-            const actorUrl = $(el).find(".zt-cast-link").attr("href");
-            const characterName = $(el).find(".zt-cast-role").text().trim();
-            
-            if (actorName) {
-                cast.push({
-                    actor: { name: actorName, url: actorUrl || null },
-                    character: characterName || null
+        // Extract download links from movie page
+        const downloadLinks = [];
+        $(".link-wrapper div div").each((i, el) => {
+            const link = $(el).find("a").attr("href");
+            if (link && link.includes('/zt-links/')) {
+                downloadLinks.push({
+                    url: link,
+                    text: $(el).text().trim()
                 });
             }
         });
-
-        const imageUrls = [];
-        $('meta[property="og:image"]').each((i, el) => {
-            const content = $(el).attr("content");
-            if (content) imageUrls.push(content.trim());
-        });
-
-        const downloadLinks = await getDownloadUrls($);
 
         const result = {
             status: true,
             data: {
                 url: movieUrl,
-                title: maintitle || title,
-                full_title: title,
-                release_year: releaseYear,
-                country: country || null,
-                runtime: runtime || null,
-                poster: mainImage || null,
-                images: imageUrls,
+                title: cleanText(title),
+                poster: poster || null,
                 description: cleanText(description),
-                genres: genres,
-                rating: {
-                    value: ratingValue,
-                    count: ratingCount
-                },
-                imdb: {
-                    value: imdbrating,
-                    count: imdbratingCount
-                },
-                director: {
-                    name: directorName || null,
-                    url: directorUrl || null
-                },
-                cast: cast,
-                download_links: downloadLinks,
-                scraped_at: new Date().toISOString()
-            }
-        };
-
-        cache.set(cacheKey, result);
-        return result;
-        
-    } catch (error) {
-        console.error(`❌ Scrape error: ${error.message}`);
-        return {
-            status: false,
-            error: `Failed to scrape: ${error.message}`,
-            url: movieUrl
-        };
-    }
-}
-
-// ============ EXTRACT DOWNLOAD (UPDATED - Supports all URLs) ============
-async function extractDownload(downloadUrl) {
-    const cacheKey = `download_${downloadUrl}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return cached;
-
-    try {
-        let finalUrl = downloadUrl;
-        let isDirect = isDirectDownloadUrl(downloadUrl);
-        
-        console.log(`📥 Processing URL: ${downloadUrl}`);
-        console.log(`📥 Is direct download: ${isDirect}`);
-        
-        // If it's already a direct download URL
-        if (isDirect) {
-            console.log(`✅ Already direct download URL`);
-            
-            // Apply replacement for Google URLs
-            if (downloadUrl.includes("google.com")) {
-                finalUrl = await replaceUrl(downloadUrl);
-            }
-            
-            // Clean bot3 URLs
-            if (downloadUrl.includes('bot3.sonic-cloud.online')) {
-                if (!downloadUrl.includes('?ext=')) {
-                    const extMatch = downloadUrl.match(/\.(mp4|mkv|zip)/i);
-                    if (extMatch) {
-                        const ext = extMatch[1].toLowerCase();
-                        finalUrl = downloadUrl + (downloadUrl.includes('?') ? `&ext=${ext}` : `?ext=${ext}`);
-                    }
-                }
-            }
-            
-            const result = {
-                status: true,
-                data: {
-                    original_url: downloadUrl,
-                    download_url: finalUrl,
-                    is_direct: true,
-                    message: "This is a direct download URL. You can use it immediately."
-                }
-            };
-            
-            cache.set(cacheKey, result);
-            return result;
-        }
-        
-        // For cinesubz URLs, extract the link
-        if (downloadUrl.includes('cinesubz.lk') || downloadUrl.includes('cinesubz.net')) {
-            console.log(`📥 Extracting from CineSubz page`);
-            
-            const { data: html } = await axios.get(downloadUrl, {
-                timeout: 30000,
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-            });
-            
-            const $ = cheerio.load(html);
-            const directLink = $("#link").attr("href")?.trim();
-            
-            if (directLink) {
-                finalUrl = directLink;
-                console.log(`📥 Found direct link: ${finalUrl}`);
-                
-                if (finalUrl.includes("google.com")) {
-                    finalUrl = await replaceUrl(finalUrl);
-                    console.log(`📥 After replacement: ${finalUrl}`);
-                }
-            }
-        }
-        
-        const result = {
-            status: true,
-            data: {
-                original_url: downloadUrl,
-                download_url: finalUrl,
-                is_direct: isDirect,
-                processed_at: new Date().toISOString()
+                download_pages: downloadLinks,
+                note: "Use /movie/extract?url={download_page_url} to get actual download links"
             }
         };
         
         cache.set(cacheKey, result);
         return result;
-        
     } catch (error) {
-        console.error(`❌ Extract error: ${error.message}`);
-        return {
-            status: false,
-            error: `Failed to process: ${error.message}`,
-            original_url: downloadUrl,
-            suggestion: "If this is a direct download URL, try using it directly in your browser."
-        };
+        return { status: false, error: error.message };
     }
 }
 
-// ============ VALIDATE/CHECK URL ============
-async function checkUrl(url) {
-    try {
-        const response = await axios.head(url, {
-            timeout: 10000,
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://cinesubz.lk/'
-            }
-        });
-        
-        return {
-            accessible: true,
-            status_code: response.status,
-            content_type: response.headers['content-type'],
-            content_length: response.headers['content-length']
-        };
-    } catch (error) {
-        return {
-            accessible: false,
-            error: error.message,
-            note: "URL format is valid but may require specific headers or referer"
-        };
-    }
+function cleanText(text) {
+    if (!text) return '';
+    return text.replace(/\s+/g, ' ').trim();
 }
 
 // ============ ROUTES ============
 
-// Root - API info
 router.get('/', (req, res) => {
     res.json({
         status: true,
-        name: "Movies API",
-        name_si: "චිත්‍රපට API",
-        description: "Scrape movie data from CineSubz with Sinhala subtitles",
+        name: "Movies API with Download Extraction",
         author: "Mr Thinuzz",
-        version: "2.0.0",
         endpoints: {
-            "/search": "Search movies - ?q=query&page=1",
-            "/recent": "Recent movies - ?page=1",
-            "/popular": "Popular movies",
-            "/info": "Movie info with download links - ?url=movie_url",
-            "/extract": "Extract direct download (supports any URL) - ?url=any_url",
-            "/check": "Check if URL is accessible - ?url=any_url"
+            "/search?q=query": "Search movies",
+            "/recent": "Recent movies",
+            "/info?url=movie_url": "Get movie info with download page links",
+            "/extract?url=page_url": "Extract actual download URL from protected page"
         },
         examples: {
-            search: "/movie/search?q=oppenheimer",
+            search: "/movie/search?q=spider",
             recent: "/movie/recent",
-            popular: "/movie/popular",
             info: "/movie/info?url=https://cinesubz.lk/movies/example/",
-            extract: "/movie/extract?url=https://bot3.sonic-cloud.online/server5/video.mp4",
-            check: "/movie/check?url=https://bot3.sonic-cloud.online/server5/video.mp4"
+            extract: "/movie/extract?url=https://cinesubz.lk/zt-links/example/"
         }
     });
 });
 
-// Search endpoint
 router.get('/search', async (req, res) => {
     const { q, page } = req.query;
-    if (!q) {
-        return res.status(400).json({ success: false, error: "Missing 'q' parameter" });
-    }
+    if (!q) return res.status(400).json({ error: "Missing 'q' parameter" });
     const result = await searchMovies(q, parseInt(page) || 1);
     res.json(result);
 });
 
-// Recent movies endpoint
 router.get('/recent', async (req, res) => {
     const result = await getRecentMovies(parseInt(req.query.page) || 1);
     res.json(result);
 });
 
-// Popular movies endpoint
-router.get('/popular', async (req, res) => {
-    const result = await getPopularMovies();
-    res.json(result);
-});
-
-// Movie info endpoint (CineSubz only)
 router.get('/info', async (req, res) => {
-    const { url, q } = req.query;
-    const targetUrl = q || url;
-    
-    if (!targetUrl) {
-        return res.status(400).json({ 
-            status: false, 
-            error: "Missing 'url' or 'q' parameter",
-            usage: "/movie/info?url=https://cinesubz.lk/movies/example/"
-        });
-    }
-    
-    let decoded = decodeURIComponent(targetUrl);
-    
-    if (!decoded.includes('cinesubz.lk') && !decoded.includes('cinesubz.net')) {
-        return res.status(400).json({ 
-            status: false, 
-            error: "Only cinesubz.lk or cinesubz.net URLs allowed for /info endpoint",
-            suggestion: "Use /movie/extract for direct download URLs"
-        });
-    }
-    
-    if (!decoded.includes('/movies/')) {
-        return res.status(400).json({ 
-            status: false, 
-            error: "URL must contain /movies/ for /info endpoint" 
-        });
-    }
-    
-    const result = await scrapeMovieInfo(decoded);
-    res.json(result);
-});
-
-// Extract download endpoint (SUPPORTS ALL URLs - No validation)
-router.get('/extract', async (req, res) => {
-    const { url, q } = req.query;
-    const targetUrl = q || url;
-    
-    if (!targetUrl) {
-        return res.status(400).json({ 
-            status: false, 
-            error: "Missing 'url' or 'q' parameter",
-            usage: "/movie/extract?url=https://any-url.com/file.mp4"
-        });
-    }
-    
-    let decoded = decodeURIComponent(targetUrl);
-    
-    // NO VALIDATION - Accept any URL
-    const result = await extractDownload(decoded);
-    res.json(result);
-});
-
-// Check URL endpoint - Check if download link is accessible
-router.get('/check', async (req, res) => {
-    const { url, q } = req.query;
-    const targetUrl = q || url;
-    
-    if (!targetUrl) {
-        return res.status(400).json({ 
-            status: false, 
-            error: "Missing 'url' or 'q' parameter",
-            usage: "/movie/check?url=https://bot3.sonic-cloud.online/video.mp4"
-        });
-    }
-    
-    let decoded = decodeURIComponent(targetUrl);
-    const result = await checkUrl(decoded);
-    
-    res.json({
-        status: true,
-        data: {
-            url: decoded,
-            is_direct: isDirectDownloadUrl(decoded),
-            ...result
-        }
-    });
-});
-
-// Direct download proxy (optional - for CORS issues)
-router.get('/proxy', async (req, res) => {
     const { url } = req.query;
-    
+    if (!url) return res.status(400).json({ error: "Missing 'url' parameter" });
+    const result = await getMovieInfo(decodeURIComponent(url));
+    res.json(result);
+});
+
+// MAIN DOWNLOAD ENDPOINT - Uses your original download.js logic
+router.get('/extract', async (req, res) => {
+    const { url } = req.query;
     if (!url) {
-        return res.status(400).json({ error: "Missing 'url' parameter" });
+        return res.status(400).json({ 
+            status: false, 
+            error: "Missing 'url' parameter",
+            usage: "/movie/extract?url=https://cinesubz.lk/zt-links/xxxxx/"
+        });
     }
     
-    try {
-        const decoded = decodeURIComponent(url);
-        const response = await axios({
-            method: 'get',
-            url: decoded,
-            responseType: 'stream',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://cinesubz.lk/'
-            }
-        });
-        
-        res.setHeader('Content-Disposition', response.headers['content-disposition'] || 'attachment');
-        res.setHeader('Content-Type', response.headers['content-type']);
-        response.data.pipe(res);
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const targetUrl = decodeURIComponent(url);
+    console.log(`📥 Extract request for: ${targetUrl}`);
+    
+    const result = await extractDirectUrl(targetUrl);
+    res.json(result);
 });
 
 module.exports = router;
