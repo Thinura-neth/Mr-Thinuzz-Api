@@ -42,8 +42,8 @@
           "path": "/extract",
           "params": ["url"],
           "required_params": ["url"],
-          "example": "/movie/extract?url=https://cinesubz.net/zt-links/...",
-          "description": "Extract direct download link from fuckingfast.co"
+          "example": "/download?url=https://cinesubz.net/zt-links/...",
+          "description": "Extract direct download link"
         },
         {
           "name": "Popular Movies",
