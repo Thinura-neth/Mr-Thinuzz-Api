@@ -18,7 +18,13 @@ function cleanText(text) {
     return text.replace(/\s+/g, ' ').trim();
 }
 
-// ============ REPLACE URL FUNCTION (from your utils.js) ============
+// Helper: extract movie slug from URL
+function extractMovieId(url) {
+    const match = url.match(/\/movies\/([^\/?#]+)/);
+    return match ? match[1] : null;
+}
+
+// ============ REPLACE URL FUNCTION ============
 async function replaceUrl(originalUrl) {
     try {
         if (!originalUrl) throw new Error("URL is empty!");
@@ -82,7 +88,7 @@ async function replaceUrl(originalUrl) {
     }
 }
 
-// ============ GET DOWNLOAD LINKS (from your movie.js) ============
+// ============ GET DOWNLOAD LINKS ============
 async function getDownloadUrls($, html) {
     const rows = [];
 
@@ -145,7 +151,7 @@ async function getDownloadUrls($, html) {
     return detailedUrls;
 }
 
-// ============ SCRAPE MOVIE INFO (Using your movie.js logic) ============
+// ============ SCRAPE MOVIE INFO ============
 async function scrapeMovieInfo(movieUrl) {
     const cacheKey = `movie_${movieUrl}`;
     const cached = cache.get(cacheKey);
@@ -236,7 +242,7 @@ async function scrapeMovieInfo(movieUrl) {
             if (content) imageUrls.push(content.trim());
         });
 
-        // ----- Download Links (MOST IMPORTANT) -----
+        // ----- Download Links -----
         const downloadLinks = await getDownloadUrls($, html);
 
         const result = {
@@ -283,7 +289,65 @@ async function scrapeMovieInfo(movieUrl) {
     }
 }
 
-// ============ SEARCH FUNCTION (Optional - keep if needed) ============
+// ============ DIRECT DOWNLOAD ENDPOINT FUNCTION ============
+async function getDirectDownload(downloadUrl) {
+    const cacheKey = `download_${downloadUrl}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        console.log(`📥 Fetching download: ${downloadUrl}`);
+        
+        // First, try to get the direct link if it's a page
+        let finalUrl = downloadUrl;
+        
+        // If it's a cinesubz link (not already a direct download)
+        if (downloadUrl.includes('cinesubz.lk') || downloadUrl.includes('cinesubz.net')) {
+            const { data: html } = await axios.get(downloadUrl, {
+                timeout: 30000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+            
+            const $ = cheerio.load(html);
+            const directLink = $("#link").attr("href")?.trim();
+            
+            if (directLink) {
+                finalUrl = directLink;
+            }
+        }
+        
+        // Apply URL replacement if needed
+        if (finalUrl.includes("google.com")) {
+            finalUrl = await replaceUrl(finalUrl);
+        }
+        
+        const result = {
+            status: true,
+            data: {
+                original_url: downloadUrl,
+                download_url: finalUrl,
+                expires: null,
+                quality: null,
+                size: null
+            }
+        };
+        
+        cache.set(cacheKey, result);
+        return result;
+        
+    } catch (error) {
+        console.error(`❌ Download fetch error: ${error.message}`);
+        return {
+            status: false,
+            error: `Failed to get download link: ${error.message}`,
+            original_url: downloadUrl
+        };
+    }
+}
+
+// ============ SEARCH FUNCTION ============
 async function searchMovies(query, pageNum = 1) {
     try {
         const searchUrl = `https://cinesubz.lk/page/${pageNum}/?s=${encodeURIComponent(query)}`;
@@ -303,7 +367,7 @@ async function searchMovies(query, pageNum = 1) {
             if (title && movieUrl) {
                 results.push({
                     title: cleanText(title),
-                    slug: movieUrl.split('/').filter(Boolean).pop(),
+                    slug: extractMovieId(movieUrl),
                     url: movieUrl,
                     poster: poster || null,
                     imdb: imdb || null,
@@ -333,7 +397,7 @@ async function getRecentMovies(pageNum = 1) {
             if (title && movieUrl && movieUrl.includes('/movies/')) {
                 movies.push({
                     title: cleanText(title),
-                    slug: movieUrl.split('/').filter(Boolean).pop(),
+                    slug: extractMovieId(movieUrl),
                     url: movieUrl,
                     poster: poster || null
                 });
@@ -354,12 +418,14 @@ router.get('/', (req, res) => {
         author: "@Mr Thinuzz",
         version: "6.0.0",
         endpoints: {
-            "GET /info?q=URL": "Get movie details with download links (MAIN)",
+            "GET /info?q=URL": "Get movie details with download links",
+            "GET /download?url=URL": "Get direct download link from movie page or download URL",
             "GET /search?q=QUERY&page=1": "Search movies",
             "GET /recent?page=1": "Recently added movies"
         },
         examples: {
-            info: "/info?q=https://cinesubz.lk/movies/kiss-of-the-spider-woman-2025-sinhala-subtitles/",
+            info: "/info?q=https://cinesubz.lk/movies/example-movie/",
+            download: "/download?url=https://cinesubz.lk/movies/example-movie/",
             search: "/search?q=spider",
             recent: "/recent"
         }
@@ -389,7 +455,34 @@ router.get('/info', async (req, res) => {
     res.json(result);
 });
 
-// Search endpoint (keep if you want, or remove)
+// NEW DOWNLOAD ENDPOINT - Get direct download link
+router.get('/download', async (req, res) => {
+    const { url, q } = req.query;
+    const targetUrl = q || url;
+    
+    if (!targetUrl) {
+        return res.status(400).json({ 
+            status: false, 
+            error: "Missing 'url' or 'q' parameter",
+            usage: "/download?url=https://cinesubz.lk/movies/example-movie/ or /download?url=https://cinesubz.lk/download-link/"
+        });
+    }
+    
+    let decoded = decodeURIComponent(targetUrl);
+    
+    // Validate URL (allow both movie pages and direct download pages)
+    if (!decoded.includes('cinesubz.lk') && !decoded.includes('cinesubz.net')) {
+        return res.status(400).json({ 
+            status: false, 
+            error: "Only cinesubz.lk or cinesubz.net URLs allowed" 
+        });
+    }
+    
+    const result = await getDirectDownload(decoded);
+    res.json(result);
+});
+
+// Search endpoint
 router.get('/search', async (req, res) => {
     const { q, page } = req.query;
     if (!q) return res.status(400).json({ success: false, error: "Missing 'q' parameter" });
@@ -397,7 +490,7 @@ router.get('/search', async (req, res) => {
     res.json(result);
 });
 
-// Recent endpoint (keep if you want, or remove)
+// Recent endpoint
 router.get('/recent', async (req, res) => {
     const result = await getRecentMovies(parseInt(req.query.page) || 1);
     res.json(result);
