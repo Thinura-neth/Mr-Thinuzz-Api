@@ -7,21 +7,147 @@ const router = express.Router();
 // Cache (TTL: 1 hour)
 const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
+// ============ CONSTANTS ============
+const CINESUBZ_BASE = "https://cinesubz.lk/";
+const CINESUBZ_FAKE_BASE = "https://cinesubz.net/";
+const DOWNLOAD_SITE_BASE = "https://bot3.sonic-cloud.online";
+
 // Helper: clean text
 function cleanText(text) {
     if (!text) return '';
     return text.replace(/\s+/g, ' ').trim();
 }
 
-// Helper: extract movie slug from URL
-function extractMovieId(url) {
-    const match = url.match(/\/movies\/([^\/?#]+)/);
-    return match ? match[1] : null;
+// ============ REPLACE URL FUNCTION (from your utils.js) ============
+async function replaceUrl(originalUrl) {
+    try {
+        if (!originalUrl) throw new Error("URL is empty!");
+
+        const urlMappings = [
+            {
+                search: ["https://google.com/server11/1:/", "https://google.com/server12/1:/", "https://google.com/server13/1:/"],
+                replace: `${DOWNLOAD_SITE_BASE}/server1/`
+            },
+            {
+                search: ["https://google.com/server21/1:/", "https://google.com/server22/1:/", "https://google.com/server23/1:/"],
+                replace: `${DOWNLOAD_SITE_BASE}/server2/`
+            },
+            { search: ["https://google.com/server3/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server3/` },
+            { search: ["https://google.com/server4/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server4/` },
+            { search: ["https://google.com/server5/1:/"], replace: `${DOWNLOAD_SITE_BASE}/server5/` },
+            { search: ["https://google.com/server6/"], replace: `${DOWNLOAD_SITE_BASE}/server6/` }
+        ];
+
+        let modifiedUrl = originalUrl;
+        let urlChanged = false;
+
+        for (const mapping of urlMappings) {
+            for (const searchUrl of mapping.search) {
+                if (originalUrl.includes(searchUrl)) {
+                    modifiedUrl = originalUrl.replace(searchUrl, mapping.replace);
+                    urlChanged = true;
+                    break;
+                }
+            }
+            if (urlChanged) break;
+        }
+
+        // Extension fixes
+        if (modifiedUrl.includes(".mp4?bot=cscloud2bot&code=")) {
+            modifiedUrl = modifiedUrl.replace(".mp4?bot=cscloud2bot&code=", "?ext=mp4&bot=cscloud2bot&code=");
+        } else if (modifiedUrl.includes(".mp4")) {
+            modifiedUrl = modifiedUrl.replace(".mp4", "?ext=mp4");
+        } else if (modifiedUrl.includes(".mkv?bot=cscloud2bot&code=")) {
+            modifiedUrl = modifiedUrl.replace(".mkv?bot=cscloud2bot&code=", "?ext=mkv&bot=cscloud2bot&code=");
+        } else if (modifiedUrl.includes(".mkv")) {
+            modifiedUrl = modifiedUrl.replace(".mkv", "?ext=mkv");
+        } else if (modifiedUrl.includes(".zip")) {
+            modifiedUrl = modifiedUrl.replace(".zip", "?ext=zip");
+        }
+
+        // Telegram fixes
+        if (!urlChanged) {
+            let tempUrl = originalUrl;
+            tempUrl = tempUrl.replace("srilank222", "srilanka2222");
+            tempUrl = tempUrl.replace("https://tsadsdaas.me/", "http://tdsdfasdaddd.me/");
+            if (tempUrl !== originalUrl) {
+                modifiedUrl = tempUrl;
+            }
+        }
+
+        return modifiedUrl;
+    } catch (error) {
+        console.error("Replace URL error:", error.message);
+        return originalUrl;
+    }
 }
 
-// ============ SCRAPE MOVIE INFO (Corrected) ============
+// ============ GET DOWNLOAD LINKS (from your movie.js) ============
+async function getDownloadUrls($, html) {
+    const rows = [];
+
+    // Extract download links from the page
+    $(".link-wrapper div div").each((index, element) => {
+        let metaText = $(element).find(".movie-download-meta").text().trim();
+        if (!metaText) {
+            metaText = $(element).find(".download-meta").text().trim();
+        }
+
+        const meta = metaText.split("•");
+        const quality = meta[0]?.trim();
+        const size = meta[1]?.trim();
+        const language = meta[2]?.trim();
+
+        let link = $(element).find("a").attr("href");
+        if (link) {
+            link = link.replace("cinesubz.net", "cinesubz.lk");
+            rows.push({ quality, size, language, link });
+        }
+    });
+
+    // Process each link to get final download URL
+    const detailedUrls = await Promise.all(
+        rows.map(async (item) => {
+            try {
+                // Fetch the detail page
+                const detailResponse = await axios.get(item.link, {
+                    timeout: 30000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                const $detail = cheerio.load(detailResponse.data);
+                
+                let finalLink = $detail("#link").attr("href")?.trim();
+                
+                if (finalLink && finalLink.includes("google.com")) {
+                    finalLink = await replaceUrl(finalLink);
+                }
+                
+                return {
+                    quality: item.quality,
+                    size: item.size,
+                    language: item.language,
+                    url: finalLink || item.link
+                };
+            } catch (err) {
+                console.error(`Error loading ${item.link}: ${err.message}`);
+                return {
+                    quality: item.quality,
+                    size: item.size,
+                    language: item.language,
+                    url: item.link
+                };
+            }
+        })
+    );
+
+    return detailedUrls;
+}
+
+// ============ SCRAPE MOVIE INFO (Using your movie.js logic) ============
 async function scrapeMovieInfo(movieUrl) {
-    const cacheKey = `info_${movieUrl}`;
+    const cacheKey = `movie_${movieUrl}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
@@ -37,131 +163,116 @@ async function scrapeMovieInfo(movieUrl) {
         const $ = cheerio.load(html);
 
         // ----- Title -----
-        let title = $('h1.entry-title, .movie-title, .title').first().text().trim();
-        if (!title) title = $('title').text().replace(' - CineSubz', '').trim();
+        let title = $(".details-title h3").text().trim();
+        
+        // ----- Main Title (without subtitle text) -----
+        let maintitle = title.replace(
+            /(Sinhala Subtitles?\s*\|\s*සිංහල උපසිරැසි සමඟ|Sinhala Subtitles?|with Sinhala Subtitles?|සිංහල උපසිරැසි\s*සමඟ|\|\s*සිංහල උපසිරැසි(?:\s*සමඟ)?)/gi,
+            ""
+        ).trim();
 
-        // ----- Poster -----
-        let poster = $('.movie-poster img, .featured-image img, .poster img').first().attr('src');
-        if (!poster) poster = $('img.wp-post-image').first().attr('src');
+        // ----- Release Year -----
+        const yearMatch = movieUrl.match(/\d{4}/);
+        const releaseYear = yearMatch ? yearMatch[0] : null;
+
+        // ----- Country -----
+        const country = $(".details-info div:nth-child(2) p:nth-child(3) span").text().trim();
+
+        // ----- Runtime -----
+        const runtime = $(".content-col.right div div.details-data span:nth-child(3)").text().trim();
+
+        // ----- Main Image -----
+        let mainImage = $(".poster-img").attr("src");
+        if (mainImage) {
+            mainImage = mainImage.replace("fit=", "fit")
+                .replace(/-\d+x\d+\.jpg$/, ".jpg")
+                .replace(CINESUBZ_FAKE_BASE, CINESUBZ_BASE);
+        }
+
+        // ----- Category / Genres -----
+        const categorydata = $(".details-genre a").text().trim();
+        const genres = categorydata.match(/([A-Z][a-z]+|\d+\+?)/g) || [];
+
+        // ----- Director -----
+        const directorName = $("#cast div:nth-child(3) div div.data div.name a").text().trim();
+        const directorUrl = $("#cast div:nth-child(3) div div.data div.name a").attr("href");
+
+        // ----- Rating -----
+        const ratingValue = $(".sheader .starstruck-rating .dt_rating_vgs").text().trim() || "0";
+        const ratingCount = $(".sheader .starstruck-rating .rating-count").text().trim() || "0";
+
+        // ----- IMDb Rating -----
+        const imdbrating = $(".data-imdb.v2").text().replace("IMDb:", "").trim() || "0";
+        const imdbratingCount = $(".votes-count").text().replace("votes", "").trim() || "0";
 
         // ----- Description -----
-        let description = $('.movie-description, .entry-content p, .description').first().text().trim();
-        // If too short, try the content div
-        if (description.length < 50) {
-            description = $('.entry-content').first().text().trim();
-        }
+        const description = $('#info div[itemprop="description"]')
+            .clone()
+            .find("script")
+            .remove()
+            .end()
+            .text()
+            .trim();
 
-        // ----- Release Year (from the table) -----
-        let releaseYear = null;
-        $('table, .release-year').each((i, el) => {
-            const text = $(el).text();
-            if (text.includes('Release year') || text.includes('Year')) {
-                // Look for a year (4 digits) in the next cell/row
-                const yearMatch = text.match(/\b(19|20)\d{2}\b/);
-                if (yearMatch) releaseYear = yearMatch[0];
-            }
-        });
-        // Alternative: find "Release year" heading and get adjacent value
-        if (!releaseYear) {
-            $('th, strong, b').each((i, el) => {
-                if ($(el).text().includes('Release year')) {
-                    const parent = $(el).closest('tr, div');
-                    releaseYear = parent.find('td, span').first().text().match(/\b(19|20)\d{2}\b/)?.[0] || null;
-                }
-            });
-        }
-
-        // ----- Download Links (Direct & Telegram) -----
-        const downloadLinks = [];
-        // Look for sections containing "Direct & Telegram Download Links"
-        $('h2, h3, strong, b').each((i, el) => {
-            const heading = $(el).text();
-            if (heading.includes('Direct & Telegram Download Links')) {
-                // Get sibling or parent container that holds the links
-                let container = $(el).nextUntil('h2, h3, hr');
-                if (container.length === 0) container = $(el).closest('div').find('ul, p');
-                
-                container.each((j, elem) => {
-                    const text = $(elem).text();
-                    // Extract quality (480p, 720p, 1080p) and size
-                    const qualityMatch = text.match(/(\d{3,4}p)/i);
-                    const sizeMatch = text.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
-                    let linkUrl = null;
-                    // Find actual anchor tag inside this element
-                    const anchor = $(elem).find('a').first();
-                    if (anchor.length) linkUrl = anchor.attr('href');
-                    
-                    if (qualityMatch) {
-                        downloadLinks.push({
-                            quality: qualityMatch[1].toLowerCase(),
-                            size: sizeMatch ? sizeMatch[0] : null,
-                            url: linkUrl,
-                            source: heading.includes('Telegram') ? 'Telegram' : 'Direct'
-                        });
-                    }
+        // ----- Cast -----
+        const cast = [];
+        $(".zt-cast-card").each((i, el) => {
+            const actorName = $(el).find(".zt-cast-name").text().trim();
+            const actorUrl = $(el).find(".zt-cast-link").attr("href");
+            const characterName = $(el).find(".zt-cast-role").text().trim();
+            
+            if (actorName) {
+                cast.push({
+                    actor: { name: actorName, url: actorUrl || null },
+                    character: characterName || null
                 });
             }
         });
 
-        // Fallback: scan entire page for any links with quality text
-        if (downloadLinks.length === 0) {
-            $('a').each((i, el) => {
-                const linkText = $(el).text();
-                const href = $(el).attr('href');
-                if (href && (linkText.match(/\d{3,4}p/i) || linkText.match(/480p|720p|1080p/i))) {
-                    const qualityMatch = linkText.match(/(\d{3,4}p)/i);
-                    const sizeMatch = linkText.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
-                    downloadLinks.push({
-                        quality: qualityMatch ? qualityMatch[1].toLowerCase() : 'unknown',
-                        size: sizeMatch ? sizeMatch[0] : null,
-                        url: href,
-                        source: href.includes('t.me') ? 'Telegram' : 'Direct'
-                    });
-                }
-            });
-        }
-
-        // Remove duplicates by quality
-        const uniqueLinks = [];
-        const seenQualities = new Set();
-        for (const link of downloadLinks) {
-            if (!seenQualities.has(link.quality)) {
-                seenQualities.add(link.quality);
-                uniqueLinks.push(link);
-            }
-        }
-
-        // ----- Genres & Cast (if available) -----
-        const genres = [];
-        $('.genres a, .genre-list a').each((i, el) => {
-            const g = $(el).text().trim();
-            if (g) genres.push(g);
+        // ----- Images -----
+        const imageUrls = [];
+        $('meta[property="og:image"]').each((i, el) => {
+            const content = $(el).attr("content");
+            if (content) imageUrls.push(content.trim());
         });
-        const cast = [];
-        $('.cast a, .actors-list a').each((i, el) => {
-            const a = $(el).text().trim();
-            if (a) cast.push(a);
-        });
+
+        // ----- Download Links (MOST IMPORTANT) -----
+        const downloadLinks = await getDownloadUrls($, html);
 
         const result = {
             status: true,
             data: {
                 url: movieUrl,
-                title: cleanText(title),
-                poster: poster || null,
-                description: cleanText(description),
+                title: maintitle || title,
+                full_title: title,
                 release_year: releaseYear,
-                genres,
-                cast,
-                download_links: uniqueLinks,
-                embed_links: [], // No embed links in this page
-                source: "Scraped from CineSubz (corrected)",
+                country: country || null,
+                runtime: runtime || null,
+                poster: mainImage || null,
+                images: imageUrls,
+                description: cleanText(description),
+                genres: genres,
+                rating: {
+                    value: ratingValue,
+                    count: ratingCount
+                },
+                imdb: {
+                    value: imdbrating,
+                    count: imdbratingCount
+                },
+                director: {
+                    name: directorName || null,
+                    url: directorUrl || null
+                },
+                cast: cast,
+                download_links: downloadLinks,
                 scraped_at: new Date().toISOString()
             }
         };
 
         cache.set(cacheKey, result);
         return result;
+        
     } catch (error) {
         console.error(`❌ Scrape error: ${error.message}`);
         return {
@@ -172,7 +283,7 @@ async function scrapeMovieInfo(movieUrl) {
     }
 }
 
-// ============ SEARCH & RECENT (unchanged, but included for completeness) ============
+// ============ SEARCH FUNCTION (Optional - keep if needed) ============
 async function searchMovies(query, pageNum = 1) {
     try {
         const searchUrl = `https://cinesubz.lk/page/${pageNum}/?s=${encodeURIComponent(query)}`;
@@ -181,20 +292,27 @@ async function searchMovies(query, pageNum = 1) {
         });
         const $ = cheerio.load(data);
         const results = [];
-        $('.display-item, .module-item, .item-box').each((i, el) => {
-            const title = $(el).find('.item-desc-title h3, .item-title').first().text().trim();
-            const movieUrl = $(el).find('a').first().attr('href');
-            const poster = $(el).find('img').first().attr('src');
-            if (title && movieUrl && movieUrl.includes('/movies/')) {
+        
+        $(".display-item").each((i, el) => {
+            const title = $(el).find(".item-box > a").attr("title");
+            const movieUrl = $(el).find(".item-box > a").attr("href");
+            const poster = $(el).find("img").attr("src");
+            const imdb = $(el).find(".rating:nth-child(1)").text().replace("IMDB ", "").trim();
+            const year = movieUrl?.match(/\d{4}/)?.[0];
+            
+            if (title && movieUrl) {
                 results.push({
                     title: cleanText(title),
-                    slug: extractMovieId(movieUrl),
+                    slug: movieUrl.split('/').filter(Boolean).pop(),
                     url: movieUrl,
-                    poster: poster || null
+                    poster: poster || null,
+                    imdb: imdb || null,
+                    year: year || null
                 });
             }
         });
-        return { success: true, data: { query, page: pageNum, results: results.slice(0, 50) } };
+        
+        return { success: true, data: { query, page: pageNum, results } };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -206,19 +324,22 @@ async function getRecentMovies(pageNum = 1) {
         const { data } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const $ = cheerio.load(data);
         const movies = [];
-        $('.display-item, .module-item, .item-box').each((i, el) => {
-            const title = $(el).find('.item-desc-title h3, .item-title').first().text().trim();
-            const movieUrl = $(el).find('a').first().attr('href');
-            const poster = $(el).find('img').first().attr('src');
+        
+        $(".display-item").each((i, el) => {
+            const title = $(el).find(".item-box > a").attr("title");
+            const movieUrl = $(el).find(".item-box > a").attr("href");
+            const poster = $(el).find("img").attr("src");
+            
             if (title && movieUrl && movieUrl.includes('/movies/')) {
                 movies.push({
                     title: cleanText(title),
-                    slug: extractMovieId(movieUrl),
+                    slug: movieUrl.split('/').filter(Boolean).pop(),
                     url: movieUrl,
                     poster: poster || null
                 });
             }
         });
+        
         return { success: true, data: { page: pageNum, movies } };
     } catch (error) {
         return { success: false, error: error.message };
@@ -229,11 +350,11 @@ async function getRecentMovies(pageNum = 1) {
 router.get('/', (req, res) => {
     res.json({
         status: true,
-        message: "🎬 CineSubz Movie API - Web Scraping (No API Key)",
-        author: "Mr Thinuzz",
+        message: "🎬 CineSubz Movie API - Web Scraping",
+        author: "@Mr Thinuzz",
         version: "6.0.0",
         endpoints: {
-            "GET /info?q=URL": "Get movie details (scraped)",
+            "GET /info?q=URL": "Get movie details with download links (MAIN)",
             "GET /search?q=QUERY&page=1": "Search movies",
             "GET /recent?page=1": "Recently added movies"
         },
@@ -245,23 +366,30 @@ router.get('/', (req, res) => {
     });
 });
 
+// MAIN ENDPOINT - Movie Info with Download Links
 router.get('/info', async (req, res) => {
     const { q, url } = req.query;
     const targetUrl = q || url;
+    
     if (!targetUrl) {
         return res.status(400).json({ status: false, error: "Missing 'q' or 'url' parameter" });
     }
+    
     let decoded = decodeURIComponent(targetUrl);
+    
     if (!decoded.includes('cinesubz.lk') && !decoded.includes('cinesubz.net')) {
         return res.status(400).json({ status: false, error: "Only cinesubz.lk or cinesubz.net URLs allowed" });
     }
+    
     if (!decoded.includes('/movies/')) {
         return res.status(400).json({ status: false, error: "URL must contain /movies/" });
     }
+    
     const result = await scrapeMovieInfo(decoded);
     res.json(result);
 });
 
+// Search endpoint (keep if you want, or remove)
 router.get('/search', async (req, res) => {
     const { q, page } = req.query;
     if (!q) return res.status(400).json({ success: false, error: "Missing 'q' parameter" });
@@ -269,6 +397,7 @@ router.get('/search', async (req, res) => {
     res.json(result);
 });
 
+// Recent endpoint (keep if you want, or remove)
 router.get('/recent', async (req, res) => {
     const result = await getRecentMovies(parseInt(req.query.page) || 1);
     res.json(result);
