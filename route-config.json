@@ -64,9 +64,7 @@
           "description": "Get popular/trending movies"
         }
       ]
-    }
-  }
-},
+    },
     "games": {
       "name": "Games API",
       "name_si": "ක්‍රීඩා API",
