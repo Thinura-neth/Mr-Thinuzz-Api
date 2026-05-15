@@ -214,19 +214,64 @@ async function extractDirectDownload(downloadPageUrl) {
     }
 }
 
-// ============ SIMPLE DOWNLOAD FUNCTION (Your API Style) ============
-async function getDownloadInfo(directUrl) {
-    const cacheKey = `download_info_${directUrl}`;
+// ============ EXTERNAL API DOWNLOAD FUNCTION ============
+async function getDownloadInfoFromExternalApi(directUrl) {
+    const cacheKey = `external_download_${directUrl}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     try {
-        console.log(`📥 Getting download info for: ${directUrl}`);
+        console.log(`📥 Calling external download API for: ${directUrl}`);
         
-        // Extract filename from URL
+        const encodedUrl = encodeURIComponent(directUrl);
+        const externalApiUrl = `https://cinesubz-api-dl.vercel.app/api/download?url=${encodedUrl}`;
+        
+        const response = await axios.get(externalApiUrl, {
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.data && response.data.status === true) {
+            const result = {
+                title: response.data.data?.title || "Unknown",
+                size: response.data.data?.size || "Unknown",
+                size_bytes: response.data.data?.size_bytes || 0,
+                downloadUrls: response.data.data?.downloadUrls || [],
+                alternative_urls: response.data.data?.alternative_urls || []
+            };
+            
+            cache.set(cacheKey, result);
+            return result;
+        } else {
+            throw new Error(response.data?.error || "External API returned unsuccessful status");
+        }
+        
+    } catch (error) {
+        console.error(`External API call failed: ${error.message}`);
+        return {
+            title: "Unknown",
+            size: "Unknown",
+            size_bytes: 0,
+            downloadUrls: [],
+            error: error.message
+        };
+    }
+}
+
+// ============ LOCAL DOWNLOAD FUNCTION (Fallback) ============
+async function getDownloadInfoLocal(directUrl) {
+    const cacheKey = `download_info_local_${directUrl}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        console.log(`📥 Getting download info locally for: ${directUrl}`);
+        
         let filename = decodeURIComponent(directUrl.split('/').pop().split('?')[0]);
         
-        // Get file size using HEAD request
         let fileSize = "Unknown";
         let sizeInBytes = 0;
         
@@ -253,7 +298,6 @@ async function getDownloadInfo(directUrl) {
             console.log("HEAD request failed, continuing without size");
         }
         
-        // Generate Telegram bot start code (based on filename)
         const startCode = Buffer.from(`get_${Date.now()}_${Math.random().toString(36).substring(7)}`).toString('base64');
         
         const result = {
@@ -276,7 +320,7 @@ async function getDownloadInfo(directUrl) {
         return result;
         
     } catch (error) {
-        console.error(`Download info failed: ${error.message}`);
+        console.error(`Local download info failed: ${error.message}`);
         return {
             title: "Unknown",
             size: "Unknown",
@@ -285,6 +329,25 @@ async function getDownloadInfo(directUrl) {
             error: error.message
         };
     }
+}
+
+// ============ MAIN DOWNLOAD FUNCTION ============
+async function getDownloadInfo(directUrl, useExternalApi = true) {
+    if (useExternalApi) {
+        const externalResult = await getDownloadInfoFromExternalApi(directUrl);
+        
+        if (externalResult.downloadUrls && externalResult.downloadUrls.length > 0) {
+            console.log(`✅ External API returned ${externalResult.downloadUrls.length} download URLs`);
+            return externalResult;
+        }
+        
+        if (externalResult.error) {
+            console.log(`⚠️ External API failed: ${externalResult.error}, falling back to local method`);
+        }
+    }
+    
+    console.log(`🔄 Using fallback local method for: ${directUrl}`);
+    return await getDownloadInfoLocal(directUrl);
 }
 
 // ============ REPLACE URL FUNCTION ============
@@ -666,7 +729,7 @@ async function getPopularMovies() {
     }
 }
 
-// ============ DOWNLOAD ENDPOINT (Like your Vercel API) ============
+// ============ DOWNLOAD ENDPOINT ============
 router.get('/download', async (req, res) => {
     const { url } = req.query;
     
@@ -682,14 +745,11 @@ router.get('/download', async (req, res) => {
         const decodedUrl = decodeURIComponent(url);
         console.log(`📥 Processing download request for: ${decodedUrl}`);
         
-        // Check if it's a CineSubz download page or direct URL
         if (decodedUrl.includes('cinesubz.lk') && (decodedUrl.includes('/zt-links/') || decodedUrl.includes('/download/'))) {
-            // Extract from download page
             const extracted = await extractDirectDownload(decodedUrl);
             
             if (extracted.success && extracted.download_urls && extracted.download_urls.length > 0) {
-                // Get detailed info for first URL
-                const downloadInfo = await getDownloadInfo(extracted.download_urls[0].url);
+                const downloadInfo = await getDownloadInfo(extracted.download_urls[0].url, true);
                 
                 return res.status(200).json({
                     author: "Mr Thinuzz",
@@ -715,8 +775,7 @@ router.get('/download', async (req, res) => {
                 throw new Error("No download URLs found");
             }
         } else {
-            // Handle direct URL
-            const downloadInfo = await getDownloadInfo(decodedUrl);
+            const downloadInfo = await getDownloadInfo(decodedUrl, true);
             
             res.status(200).json({
                 author: "Mr Thinuzz",
@@ -752,7 +811,6 @@ router.get('/extract-v2', async (req, res) => {
     let decoded = decodeURIComponent(targetUrl);
     decoded = decoded.replace(/\s/g, '%20');
     
-    // Check if it's a CineSubz download page
     if ((decoded.includes('cinesubz.lk') || decoded.includes('cinesubz.net')) && 
         (decoded.includes('/zt-links/') || decoded.includes('/download/'))) {
         const result = await extractDirectDownload(decoded);
@@ -764,7 +822,6 @@ router.get('/extract-v2', async (req, res) => {
         });
     }
     
-    // If it's a direct URL, just process it
     let finalUrl = decoded;
     let quality = "Unknown";
     let size = "Unknown";
@@ -848,10 +905,8 @@ router.get('/get', async (req, res) => {
         });
     }
     
-    // Get movie info
     const movieResult = await scrapeMovieInfo(decoded);
     
-    // If extract_links is true, also extract direct download links
     if (extract_links === 'true' || extract_links === '1') {
         if (movieResult.status && movieResult.data.download_links) {
             const downloadPages = movieResult.data.download_links.filter(link => link.download_page);
