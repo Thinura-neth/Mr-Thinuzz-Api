@@ -354,68 +354,209 @@ async function scrapeMovieInfo(movieUrl) {
 
         const $ = cheerio.load(html);
 
+        // ============ TITLE EXTRACTION (Improved) ============
         let title = $(".details-title h3").text().trim();
+        if (!title) {
+            title = $("h1.entry-title").text().trim();
+        }
+        if (!title) {
+            title = $(".movie-title").text().trim();
+        }
         
         let maintitle = title.replace(
             /(Sinhala Subtitles?\s*\|\s*සිංහල උපසිරැසි සමඟ|Sinhala Subtitles?|with Sinhala Subtitles?|සිංහල උපසිරැසි\s*සමඟ|\|\s*සිංහල උපසිරැසි(?:\s*සමඟ)?)/gi,
             ""
         ).trim();
 
-        const yearMatch = movieUrl.match(/\d{4}/);
-        const releaseYear = yearMatch ? yearMatch[0] : null;
+        // ============ YEAR EXTRACTION (From URL or page) ============
+        let releaseYear = null;
+        // Try from URL first
+        const urlYearMatch = movieUrl.match(/\d{4}/);
+        if (urlYearMatch) {
+            releaseYear = urlYearMatch[0];
+        }
+        // Try from page if not found
+        if (!releaseYear) {
+            const yearText = $(".movie-year, .release-year, .year, .dt_pyear, [itemprop='datePublished']").first().text().trim();
+            const yearMatch = yearText.match(/(19|20)\d{2}/);
+            if (yearMatch) releaseYear = yearMatch[0];
+        }
 
-        const country = $(".details-info div:nth-child(2) p:nth-child(3) span").text().trim();
-        const runtime = $(".content-col.right div div.details-data span:nth-child(3)").text().trim();
+        // ============ COUNTRY EXTRACTION (Improved) ============
+        let country = null;
+        const countrySelectors = [
+            ".details-info div:nth-child(2) p:nth-child(3) span",
+            ".country, .movie-country, .dt_country",
+            ".details-info span:contains('Country')",
+            ".info-item:contains('Country')",
+            ".meta-item:contains('Country')"
+        ];
+        for (const selector of countrySelectors) {
+            const countryText = $(selector).text().trim();
+            if (countryText && countryText.length > 0 && countryText.length < 50) {
+                country = countryText;
+                break;
+            }
+        }
 
+        // ============ RUNTIME EXTRACTION (Improved) ============
+        let runtime = null;
+        const runtimeSelectors = [
+            ".content-col.right div div.details-data span:nth-child(3)",
+            ".runtime, .movie-runtime, .dt_runtime",
+            ".details-info span:contains('min')",
+            "[itemprop='duration']"
+        ];
+        for (const selector of runtimeSelectors) {
+            const runtimeText = $(selector).text().trim();
+            if (runtimeText) {
+                const runtimeMatch = runtimeText.match(/(\d+)\s*(?:min|minutes|mins)/i);
+                if (runtimeMatch) {
+                    runtime = runtimeMatch[1] + " min";
+                    break;
+                }
+                if (runtimeText.match(/\d+/)) {
+                    runtime = runtimeText;
+                    break;
+                }
+            }
+        }
+
+        // ============ POSTER IMAGE ============
         let mainImage = $(".poster-img").attr("src");
+        if (!mainImage) {
+            mainImage = $(".movie-poster img").attr("src");
+        }
+        if (!mainImage) {
+            mainImage = $("img.wp-post-image").attr("src");
+        }
         if (mainImage) {
             mainImage = mainImage.replace("fit=", "fit")
                 .replace(/-\d+x\d+\.jpg$/, ".jpg")
                 .replace(CINESUBZ_FAKE_BASE, CINESUBZ_BASE);
         }
 
-        const categorydata = $(".details-genre a").text().trim();
-        const genres = categorydata.match(/([A-Z][a-z]+|\d+\+?)/g) || [];
+        // ============ GENRES EXTRACTION (Improved) ============
+        let genres = [];
+        const genreText = $(".details-genre a, .movie-genres a, .genres a, .dt_categories a").text().trim();
+        if (genreText) {
+            genres = genreText.match(/([A-Z][a-z]+|\d+\+?)/g) || [];
+        }
+        // Alternative genre extraction
+        if (genres.length === 0) {
+            $(".genre, .movie-genre, .dt_genre").each((i, el) => {
+                const g = $(el).text().trim();
+                if (g && g.length < 30) genres.push(g);
+            });
+        }
 
-        const directorName = $("#cast div:nth-child(3) div div.data div.name a").text().trim();
-        const directorUrl = $("#cast div:nth-child(3) div div.data div.name a").attr("href");
+        // ============ DIRECTOR EXTRACTION (Improved) ============
+        let directorName = null;
+        let directorUrl = null;
+        
+        const directorSelectors = [
+            "#cast div:nth-child(3) div div.data div.name a",
+            ".director a, .movie-director a, .dt_director a",
+            ".info-item:contains('Director') a",
+            "[itemprop='director'] a"
+        ];
+        for (const selector of directorSelectors) {
+            const dirName = $(selector).text().trim();
+            if (dirName && dirName.length > 0 && dirName.length < 100) {
+                directorName = dirName;
+                directorUrl = $(selector).attr("href") || null;
+                break;
+            }
+        }
 
-        const ratingValue = $(".sheader .starstruck-rating .dt_rating_vgs").text().trim() || "0";
-        const ratingCount = $(".sheader .starstruck-rating .rating-count").text().trim() || "0";
+        // ============ RATING EXTRACTION (IMDb) ============
+        let imdbrating = "0";
+        let imdbratingCount = "0";
+        
+        const imdbSelectors = [
+            ".data-imdb.v2",
+            ".imdb-rating",
+            ".starstruck-rating .dt_rating_vgs",
+            "[itemprop='ratingValue']"
+        ];
+        for (const selector of imdbSelectors) {
+            const ratingText = $(selector).text().trim();
+            if (ratingText) {
+                const ratingMatch = ratingText.match(/(\d+(?:\.\d+)?)/);
+                if (ratingMatch) {
+                    imdbrating = ratingMatch[1];
+                    break;
+                }
+            }
+        }
+        
+        const ratingCountSelectors = [
+            ".votes-count",
+            ".imdb-votes",
+            "[itemprop='ratingCount']"
+        ];
+        for (const selector of ratingCountSelectors) {
+            const countText = $(selector).text().trim();
+            if (countText) {
+                const countMatch = countText.match(/(\d+(?:,\d+)?)/);
+                if (countMatch) {
+                    imdbratingCount = countMatch[1].replace(/,/g, "");
+                    break;
+                }
+            }
+        }
 
-        const imdbrating = $(".data-imdb.v2").text().replace("IMDb:", "").trim() || "0";
-        const imdbratingCount = $(".votes-count").text().replace("votes", "").trim() || "0";
+        // ============ DESCRIPTION EXTRACTION ============
+        let description = "";
+        const descSelectors = [
+            '#info div[itemprop="description"]',
+            '.movie-description',
+            '.entry-content p',
+            '.desc-text',
+            '.plot'
+        ];
+        for (const selector of descSelectors) {
+            const descText = $(selector).clone().find("script").remove().end().text().trim();
+            if (descText && descText.length > 50) {
+                description = descText;
+                break;
+            }
+        }
+        description = cleanText(description);
 
-        const description = $('#info div[itemprop="description"]')
-            .clone()
-            .find("script")
-            .remove()
-            .end()
-            .text()
-            .trim();
-
+        // ============ CAST EXTRACTION ============
         const cast = [];
-        $(".zt-cast-card").each((i, el) => {
-            const actorName = $(el).find(".zt-cast-name").text().trim();
-            const actorUrl = $(el).find(".zt-cast-link").attr("href");
-            const characterName = $(el).find(".zt-cast-role").text().trim();
+        $(".zt-cast-card, .cast-item, .movie-cast-item, [itemprop='actor']").each((i, el) => {
+            if (i >= 15) return false;
+            let actorName = $(el).find(".zt-cast-name, .cast-name, .actor-name, [itemprop='name']").text().trim();
+            if (!actorName) {
+                actorName = $(el).find("a").first().text().trim();
+            }
+            let characterName = $(el).find(".zt-cast-role, .cast-role, .character-name, [itemprop='characterName']").text().trim();
+            if (!characterName) {
+                characterName = $(el).find(".role").text().trim();
+            }
+            let actorUrl = $(el).find("a").attr("href") || null;
             
-            if (actorName) {
+            if (actorName && actorName.length > 0 && actorName.length < 100) {
                 cast.push({
-                    actor: { name: actorName, url: actorUrl || null },
+                    actor: { name: actorName, url: actorUrl },
                     character: characterName || null
                 });
             }
         });
 
+        // ============ IMAGES ============
         const imageUrls = [];
         $('meta[property="og:image"]').each((i, el) => {
             const content = $(el).attr("content");
             if (content) imageUrls.push(content.trim());
         });
 
+        // ============ DOWNLOAD LINKS ============
         const downloadLinks = await getDownloadUrls($);
 
+        // ============ RESULT ============
         const result = {
             status: true,
             data: {
@@ -427,11 +568,11 @@ async function scrapeMovieInfo(movieUrl) {
                 runtime: runtime || null,
                 poster: mainImage || null,
                 images: imageUrls,
-                description: cleanText(description),
-                genres: genres,
+                description: description || null,
+                genres: genres.length > 0 ? genres : null,
                 rating: {
-                    value: ratingValue,
-                    count: ratingCount
+                    value: imdbrating,
+                    count: imdbratingCount
                 },
                 imdb: {
                     value: imdbrating,
