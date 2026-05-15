@@ -19,6 +19,14 @@
       "dest": "/js/$1"
     },
     {
+      "src": "/download",
+      "dest": "/api/download.js"
+    },
+    {
+      "src": "/download/(.*)",
+      "dest": "/api/download.js"
+    },
+    {
       "src": "/game/(.*)",
       "dest": "/index.js"
     },
@@ -28,10 +36,6 @@
     },
     {
       "src": "/movie/(.*)",
-      "dest": "/index.js"
-    },
-    {
-      "src": "/download/(.*)",
       "dest": "/index.js"
     },
     {
