@@ -37,13 +37,22 @@
           "description": "Get detailed movie info with download links"
         },
         {
-          "name": "Movie Download",
+          "name": "Direct Download",
+          "method": "GET",
+          "path": "/download",
+          "params": ["url"],
+          "required_params": ["url"],
+          "example": "/movie/download?url=https://bot3.sonic-cloud.online/server5/file.mp4?ext=mp4",
+          "description": "Get direct download info with file size and alternative links"
+        },
+        {
+          "name": "Extract Download",
           "method": "GET",
           "path": "/extract",
           "params": ["url"],
           "required_params": ["url"],
-          "example": "/download?url=https://cinesubz.net/zt-links/...",
-          "description": "Extract direct download link"
+          "example": "/movie/extract?url=https://cinesubz.net/zt-links/...",
+          "description": "Extract direct download link from CineSubz page"
         },
         {
           "name": "Popular Movies",
@@ -55,7 +64,9 @@
           "description": "Get popular/trending movies"
         }
       ]
-    },
+    }
+  }
+},
     "games": {
       "name": "Games API",
       "name_si": "ක්‍රීඩා API",
