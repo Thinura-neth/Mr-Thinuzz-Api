@@ -14,6 +14,7 @@ const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 const CINESUBZ_BASE = "https://cinesubz.lk/";
 const CINESUBZ_FAKE_BASE = "https://cinesubz.net/";
 const DOWNLOAD_SITE_BASE = "https://bot3.sonic-cloud.online";
+const TELEGRAM_BOT_API = "https://t.me/cstg03bot?start=";
 
 // Helper: clean text
 function cleanText(text) {
@@ -209,6 +210,79 @@ async function extractDirectDownload(downloadPageUrl) {
             success: false,
             error: error.message,
             original_page: downloadPageUrl
+        };
+    }
+}
+
+// ============ SIMPLE DOWNLOAD FUNCTION (Your API Style) ============
+async function getDownloadInfo(directUrl) {
+    const cacheKey = `download_info_${directUrl}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        console.log(`📥 Getting download info for: ${directUrl}`);
+        
+        // Extract filename from URL
+        let filename = decodeURIComponent(directUrl.split('/').pop().split('?')[0]);
+        
+        // Get file size using HEAD request
+        let fileSize = "Unknown";
+        let sizeInBytes = 0;
+        
+        try {
+            const headResponse = await axios.head(directUrl, {
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Referer': 'https://cinesubz.lk/'
+                }
+            });
+            
+            if (headResponse.headers['content-length']) {
+                sizeInBytes = parseInt(headResponse.headers['content-length']);
+                if (sizeInBytes > 1073741824) {
+                    fileSize = (sizeInBytes / 1073741824).toFixed(2) + ' GB';
+                } else if (sizeInBytes > 1048576) {
+                    fileSize = (sizeInBytes / 1048576).toFixed(2) + ' MB';
+                } else {
+                    fileSize = (sizeInBytes / 1024).toFixed(2) + ' KB';
+                }
+            }
+        } catch (e) {
+            console.log("HEAD request failed, continuing without size");
+        }
+        
+        // Generate Telegram bot start code (based on filename)
+        const startCode = Buffer.from(`get_${Date.now()}_${Math.random().toString(36).substring(7)}`).toString('base64');
+        
+        const result = {
+            title: filename,
+            size: fileSize,
+            size_bytes: sizeInBytes,
+            downloadUrls: [
+                {
+                    url: `${TELEGRAM_BOT_API}${startCode}`,
+                    type: "telegram"
+                },
+                {
+                    url: directUrl,
+                    type: "direct"
+                }
+            ]
+        };
+        
+        cache.set(cacheKey, result);
+        return result;
+        
+    } catch (error) {
+        console.error(`Download info failed: ${error.message}`);
+        return {
+            title: "Unknown",
+            size: "Unknown",
+            size_bytes: 0,
+            downloadUrls: [],
+            error: error.message
         };
     }
 }
@@ -592,6 +666,75 @@ async function getPopularMovies() {
     }
 }
 
+// ============ DOWNLOAD ENDPOINT (Like your Vercel API) ============
+router.get('/download', async (req, res) => {
+    const { url } = req.query;
+    
+    if (!url) {
+        return res.status(400).json({
+            author: "Mr Thinuzz",
+            status: false,
+            error: "URL is required"
+        });
+    }
+    
+    try {
+        const decodedUrl = decodeURIComponent(url);
+        console.log(`📥 Processing download request for: ${decodedUrl}`);
+        
+        // Check if it's a CineSubz download page or direct URL
+        if (decodedUrl.includes('cinesubz.lk') && (decodedUrl.includes('/zt-links/') || decodedUrl.includes('/download/'))) {
+            // Extract from download page
+            const extracted = await extractDirectDownload(decodedUrl);
+            
+            if (extracted.success && extracted.download_urls && extracted.download_urls.length > 0) {
+                // Get detailed info for first URL
+                const downloadInfo = await getDownloadInfo(extracted.download_urls[0].url);
+                
+                return res.status(200).json({
+                    author: "Mr Thinuzz",
+                    status: true,
+                    data: {
+                        title: downloadInfo.title,
+                        size: downloadInfo.size,
+                        size_bytes: downloadInfo.size_bytes,
+                        downloadUrls: [
+                            {
+                                url: extracted.download_urls[0].url,
+                                type: "direct",
+                                quality: extracted.download_urls[0].quality
+                            }
+                        ],
+                        alternative_urls: extracted.download_urls.slice(1).map(u => ({
+                            url: u.url,
+                            quality: u.quality
+                        }))
+                    }
+                });
+            } else {
+                throw new Error("No download URLs found");
+            }
+        } else {
+            // Handle direct URL
+            const downloadInfo = await getDownloadInfo(decodedUrl);
+            
+            res.status(200).json({
+                author: "Mr Thinuzz",
+                status: true,
+                data: downloadInfo
+            });
+        }
+        
+    } catch (err) {
+        console.error(`Download error: ${err.message}`);
+        res.status(500).json({
+            author: "Mr Thinuzz",
+            status: false,
+            error: err.message
+        });
+    }
+});
+
 // ============ EXTRACT V2 (With Download Page Extraction) ============
 router.get('/extract-v2', async (req, res) => {
     const { url, q } = req.query;
@@ -753,6 +896,7 @@ router.get('/', (req, res) => {
         author: "Mr Thinuzz",
         version: "3.1.0",
         endpoints: {
+            "/movie/download": "Get direct download info - ?url=direct_url_or_cinesubz_page",
             "/movie/search": "Search movies - ?q=query&page=1",
             "/movie/recent": "Recent movies - ?page=1",
             "/movie/popular": "Popular movies",
@@ -761,6 +905,7 @@ router.get('/', (req, res) => {
             "/movie/extract-v2": "Extract direct download from CineSubz page - ?url=download_page_url"
         },
         examples: {
+            download: "/movie/download?url=https://bot3.sonic-cloud.online/server5/file.mp4",
             search: "/movie/search?q=oppenheimer",
             info: "/movie/info?url=https://cinesubz.lk/movies/oppenheimer-2023/",
             get: "/movie/get?url=https://cinesubz.lk/movies/oppenheimer-2023/&extract_links=true",
