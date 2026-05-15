@@ -354,7 +354,7 @@ async function scrapeMovieInfo(movieUrl) {
 
         const $ = cheerio.load(html);
 
-        // ============ TITLE EXTRACTION (Improved) ============
+        // ============ TITLE EXTRACTION ============
         let title = $(".details-title h3").text().trim();
         if (!title) {
             title = $("h1.entry-title").text().trim();
@@ -368,21 +368,19 @@ async function scrapeMovieInfo(movieUrl) {
             ""
         ).trim();
 
-        // ============ YEAR EXTRACTION (From URL or page) ============
+        // ============ YEAR EXTRACTION ============
         let releaseYear = null;
-        // Try from URL first
         const urlYearMatch = movieUrl.match(/\d{4}/);
         if (urlYearMatch) {
             releaseYear = urlYearMatch[0];
         }
-        // Try from page if not found
         if (!releaseYear) {
             const yearText = $(".movie-year, .release-year, .year, .dt_pyear, [itemprop='datePublished']").first().text().trim();
             const yearMatch = yearText.match(/(19|20)\d{2}/);
             if (yearMatch) releaseYear = yearMatch[0];
         }
 
-        // ============ COUNTRY EXTRACTION (Improved) ============
+        // ============ COUNTRY EXTRACTION ============
         let country = null;
         const countrySelectors = [
             ".details-info div:nth-child(2) p:nth-child(3) span",
@@ -393,30 +391,74 @@ async function scrapeMovieInfo(movieUrl) {
         ];
         for (const selector of countrySelectors) {
             const countryText = $(selector).text().trim();
-            if (countryText && countryText.length > 0 && countryText.length < 50) {
+            if (countryText && countryText.length > 0 && countryText.length < 50 && !countryText.includes("IMDb")) {
                 country = countryText;
                 break;
             }
         }
 
-        // ============ RUNTIME EXTRACTION (Improved) ============
+        // ============ RUNTIME EXTRACTION (Fixed - Only movie duration) ============
         let runtime = null;
+        
+        // First, try specific selectors for runtime/duration
         const runtimeSelectors = [
             ".content-col.right div div.details-data span:nth-child(3)",
-            ".runtime, .movie-runtime, .dt_runtime",
-            ".details-info span:contains('min')",
+            ".runtime",
+            ".movie-runtime",
+            ".dt_runtime",
+            ".duration",
+            ".movie-duration",
             "[itemprop='duration']"
         ];
+        
         for (const selector of runtimeSelectors) {
-            const runtimeText = $(selector).text().trim();
-            if (runtimeText) {
-                const runtimeMatch = runtimeText.match(/(\d+)\s*(?:min|minutes|mins)/i);
-                if (runtimeMatch) {
-                    runtime = runtimeMatch[1] + " min";
+            const runtimeText = $(selector).first().text().trim();
+            if (runtimeText && !runtimeText.includes("IMDb") && !runtimeText.includes("Rating") && !runtimeText.includes("⭐")) {
+                // Check for hour and min pattern (e.g., "2h 15min", "1hr 30min")
+                const hourMinMatch = runtimeText.match(/(\d+)\s*(?:hour|hr|h)\s*(?:and\s*)?(\d+)\s*(?:min|minutes?)/i);
+                if (hourMinMatch) {
+                    runtime = hourMinMatch[1] + "h " + hourMinMatch[2] + "min";
                     break;
                 }
-                if (runtimeText.match(/\d+/)) {
-                    runtime = runtimeText;
+                // Check for hours only
+                const hoursOnlyMatch = runtimeText.match(/(\d+)\s*(?:hour|hr|h)(?!\s*(?:min|minutes?))/i);
+                if (hoursOnlyMatch) {
+                    runtime = hoursOnlyMatch[1] + "h";
+                    break;
+                }
+                // Check for minutes only
+                const minutesMatch = runtimeText.match(/(\d+)\s*(?:min|minutes?)/i);
+                if (minutesMatch) {
+                    runtime = minutesMatch[1] + " min";
+                    break;
+                }
+                // If just a number, assume minutes
+                if (runtimeText.match(/^\d+$/)) {
+                    runtime = runtimeText + " min";
+                    break;
+                }
+            }
+        }
+        
+        // Fallback: search entire page for duration pattern
+        if (!runtime) {
+            const bodyHtml = $.html();
+            const patterns = [
+                /(\d+)\s*(?:hour|hr|h)\s*(?:and\s*)?(\d+)\s*(?:min|minutes?)/i,
+                /(\d+)\s*h\s*(\d+)\s*min/i,
+                /(\d+)\s*(?:hour|hr|h)(?!\s*(?:min|minutes?))/i,
+                /(\d+)\s*(?:min|minutes?)/i
+            ];
+            for (const pattern of patterns) {
+                const match = bodyHtml.match(pattern);
+                if (match) {
+                    if (match[2]) {
+                        runtime = match[1] + "h " + match[2] + "min";
+                    } else if (pattern.toString().includes("hour|hr|h") && !pattern.toString().includes("min")) {
+                        runtime = match[1] + "h";
+                    } else {
+                        runtime = match[1] + " min";
+                    }
                     break;
                 }
             }
@@ -436,21 +478,20 @@ async function scrapeMovieInfo(movieUrl) {
                 .replace(CINESUBZ_FAKE_BASE, CINESUBZ_BASE);
         }
 
-        // ============ GENRES EXTRACTION (Improved) ============
+        // ============ GENRES EXTRACTION ============
         let genres = [];
         const genreText = $(".details-genre a, .movie-genres a, .genres a, .dt_categories a").text().trim();
         if (genreText) {
             genres = genreText.match(/([A-Z][a-z]+|\d+\+?)/g) || [];
         }
-        // Alternative genre extraction
         if (genres.length === 0) {
             $(".genre, .movie-genre, .dt_genre").each((i, el) => {
                 const g = $(el).text().trim();
-                if (g && g.length < 30) genres.push(g);
+                if (g && g.length < 30 && !g.includes("IMDb")) genres.push(g);
             });
         }
 
-        // ============ DIRECTOR EXTRACTION (Improved) ============
+        // ============ DIRECTOR EXTRACTION ============
         let directorName = null;
         let directorUrl = null;
         
@@ -458,49 +499,96 @@ async function scrapeMovieInfo(movieUrl) {
             "#cast div:nth-child(3) div div.data div.name a",
             ".director a, .movie-director a, .dt_director a",
             ".info-item:contains('Director') a",
-            "[itemprop='director'] a"
+            "[itemprop='director'] a",
+            ".crew-item:contains('Director') a"
         ];
         for (const selector of directorSelectors) {
-            const dirName = $(selector).text().trim();
-            if (dirName && dirName.length > 0 && dirName.length < 100) {
+            const dirName = $(selector).first().text().trim();
+            if (dirName && dirName.length > 0 && dirName.length < 100 && !dirName.includes("IMDb")) {
                 directorName = dirName;
-                directorUrl = $(selector).attr("href") || null;
+                directorUrl = $(selector).first().attr("href") || null;
                 break;
             }
         }
 
-        // ============ RATING EXTRACTION (IMDb) ============
+        // ============ RATING EXTRACTION (IMDb - Clean) ============
         let imdbrating = "0";
         let imdbratingCount = "0";
         
+        // IMDb Rating Value
         const imdbSelectors = [
             ".data-imdb.v2",
             ".imdb-rating",
             ".starstruck-rating .dt_rating_vgs",
-            "[itemprop='ratingValue']"
+            "[itemprop='ratingValue']",
+            ".detail_rating",
+            ".movie-rating"
         ];
         for (const selector of imdbSelectors) {
-            const ratingText = $(selector).text().trim();
+            let ratingText = $(selector).first().text().trim();
             if (ratingText) {
+                ratingText = ratingText.replace(/IMDb:\s*/i, "");
                 const ratingMatch = ratingText.match(/(\d+(?:\.\d+)?)/);
                 if (ratingMatch) {
-                    imdbrating = ratingMatch[1];
-                    break;
+                    const ratingNum = parseFloat(ratingMatch[1]);
+                    if (ratingNum <= 10 && ratingNum > 0) {
+                        imdbrating = ratingMatch[1];
+                        break;
+                    }
                 }
             }
         }
         
+        // Fallback: search page for IMDb rating
+        if (imdbrating === "0") {
+            const bodyText = $("body").text();
+            const imdbPattern = /IMDb:\s*(\d+(?:\.\d+)?)/i;
+            const match = bodyText.match(imdbPattern);
+            if (match) {
+                const ratingNum = parseFloat(match[1]);
+                if (ratingNum <= 10 && ratingNum > 0) {
+                    imdbrating = match[1];
+                }
+            }
+        }
+        
+        // Rating Count (Votes)
         const ratingCountSelectors = [
             ".votes-count",
             ".imdb-votes",
-            "[itemprop='ratingCount']"
+            "[itemprop='ratingCount']",
+            ".rating-count",
+            ".votes"
         ];
         for (const selector of ratingCountSelectors) {
-            const countText = $(selector).text().trim();
+            let countText = $(selector).first().text().trim();
             if (countText) {
-                const countMatch = countText.match(/(\d+(?:,\d+)?)/);
+                countText = countText.replace(/votes?/gi, "").replace(/,/g, "").trim();
+                
+                // Handle K suffix (e.g., 2.7K)
+                if (countText.match(/(\d+(?:\.\d+)?)\s*[Kk]/)) {
+                    const kMatch = countText.match(/(\d+(?:\.\d+)?)\s*[Kk]/);
+                    if (kMatch) {
+                        const num = parseFloat(kMatch[1]);
+                        if (!isNaN(num)) {
+                            imdbratingCount = Math.round(num * 1000).toString();
+                            break;
+                        }
+                    }
+                }
+                
+                const countMatch = countText.match(/(\d+(?:\.\d+)?)/);
                 if (countMatch) {
-                    imdbratingCount = countMatch[1].replace(/,/g, "");
+                    if (countMatch[1].includes(".")) {
+                        const num = parseFloat(countMatch[1]);
+                        if (!isNaN(num) && num < 100) {
+                            imdbratingCount = Math.round(num * 1000).toString();
+                        } else {
+                            imdbratingCount = countMatch[1].replace(/\./g, "");
+                        }
+                    } else {
+                        imdbratingCount = countMatch[1];
+                    }
                     break;
                 }
             }
@@ -513,7 +601,8 @@ async function scrapeMovieInfo(movieUrl) {
             '.movie-description',
             '.entry-content p',
             '.desc-text',
-            '.plot'
+            '.plot',
+            '.synopsis'
         ];
         for (const selector of descSelectors) {
             const descText = $(selector).clone().find("script").remove().end().text().trim();
@@ -538,7 +627,7 @@ async function scrapeMovieInfo(movieUrl) {
             }
             let actorUrl = $(el).find("a").attr("href") || null;
             
-            if (actorName && actorName.length > 0 && actorName.length < 100) {
+            if (actorName && actorName.length > 0 && actorName.length < 100 && !actorName.includes("IMDb")) {
                 cast.push({
                     actor: { name: actorName, url: actorUrl },
                     character: characterName || null
