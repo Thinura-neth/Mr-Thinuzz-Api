@@ -299,9 +299,16 @@ router.get('/', (req, res) => {
 
 // Search Endpoint
 router.get('/search', async (req, res) => {
-    let qParam = req.query.q;
-    
-    // Fallback if Vercel serverless functions drop query
+    let qParam = null;
+
+    // 1. Check nested URL parameter wrapping
+    if (req.query.url) {
+        const nestedUrl = decodeURIComponent(req.query.url);
+        if (nestedUrl.includes('q=')) qParam = nestedUrl.split('q=')[1].split('&')[0];
+    }
+    // 2. Normal Query extraction
+    if (!qParam && req.query.q) qParam = req.query.q;
+    // 3. Raw String fallback
     if (!qParam && req.url.includes('q=')) {
         const urlParts = req.url.split('q=');
         if (urlParts.length > 1) qParam = urlParts[1].split('&')[0];
@@ -325,16 +332,43 @@ router.get('/search', async (req, res) => {
     });
 });
 
-// Info Endpoint (⚡ FIXED: QUERY LOSS/VERCEL FALLBACK ADDED)
+// Info Endpoint (⚡ FIXED: DOUBLE QUERY WRAPPING & VERCEL LOSS RESOLVED)
 router.get('/info', async (req, res) => {
-    // 1. මුලින්ම Express වල සාමාන්‍ය ක්‍රමයට query එක කියවන්න බලනවා
-    let pathParam = req.query.path;
-    
-    // 2. Vercel Serverless වලදී query parameter එක drop වුනොත් කෙලින්ම URL string එකෙන් කපා ගන්නවා
+    let pathParam = null;
+
+    // ක්‍රමය 1: සයිට් එකෙන් ?url=/aone/info?path=... ලෙස ඔතාගෙන එව්වොත් ගලවා ගැනීම
+    if (req.query.url) {
+        const nestedUrl = decodeURIComponent(req.query.url);
+        if (nestedUrl.includes('path=')) {
+            pathParam = nestedUrl.split('path=')[1].split('&')[0];
+        } else if (!nestedUrl.includes('?') && nestedUrl.length > 3) {
+            pathParam = nestedUrl; // slug එක කෙලින්ම ආවොත්
+        }
+    }
+
+    // ක්‍රමය 2: Browser එකෙන් කෙලින්ම ?path=... කියලා ආවොත්
+    if (!pathParam && req.query.path) {
+        pathParam = req.query.path;
+    }
+
+    // ක්‍රමය 3: Vercel serverless නිසා query object එක හිස් වුනොත් Raw URL එක පීරීම
     if (!pathParam && req.url.includes('path=')) {
         const urlParts = req.url.split('path=');
         if (urlParts.length > 1) {
             pathParam = urlParts[1].split('&')[0];
+        }
+    }
+    
+    // ක්‍රමය 4: URL fallback extraction
+    if (!pathParam && req.url.includes('url=')) {
+        const urlParts = req.url.split('url=');
+        if (urlParts.length > 1) {
+            const extracted = decodeURIComponent(urlParts[1].split('&')[0]);
+            if (extracted.includes('path=')) {
+                pathParam = extracted.split('path=')[1].split('&')[0];
+            } else if (!extracted.includes('/') && extracted.length > 0) {
+                pathParam = extracted;
+            }
         }
     }
 
@@ -348,9 +382,7 @@ router.get('/info', async (req, res) => {
         });
     }
 
-    // URL safe decode කිරීම (spider-man-homecoming-ylSxcJY0uNa වැනි අගයන් සඳහා)
     const decodedPath = decodeURIComponent(pathParam);
-
     const result = await getAoneMovieInfo(decodedPath);
     res.json({
         ...result,
@@ -361,9 +393,13 @@ router.get('/info', async (req, res) => {
 
 // YouTube Downloader Endpoint
 router.get('/ytdl', async (req, res) => {
-    let urlParam = req.query.url;
+    let urlParam = null;
 
-    // Vercel Fallback for url parameter
+    if (req.query.url) {
+        const nestedUrl = decodeURIComponent(req.query.url);
+        if (nestedUrl.includes('url=')) urlParam = nestedUrl.split('url=')[1].split('&')[0];
+        else urlParam = req.query.url;
+    }
     if (!urlParam && req.url.includes('url=')) {
         const urlParts = req.url.split('url=');
         if (urlParts.length > 1) urlParam = urlParts[1].split('&')[0];
@@ -398,9 +434,13 @@ router.get('/ytdl', async (req, res) => {
 
 // Direct Link Extractor Endpoint
 router.get('/direct', async (req, res) => {
-    let urlParam = req.query.url;
+    let urlParam = null;
 
-    // Vercel Fallback for direct link extractor url
+    if (req.query.url) {
+        const nestedUrl = decodeURIComponent(req.query.url);
+        if (nestedUrl.includes('url=')) urlParam = nestedUrl.split('url=')[1].split('&')[0];
+        else urlParam = req.query.url;
+    }
     if (!urlParam && req.url.includes('url=')) {
         const urlParts = req.url.split('url=');
         if (urlParts.length > 1) urlParam = urlParts[1].split('&')[0];
