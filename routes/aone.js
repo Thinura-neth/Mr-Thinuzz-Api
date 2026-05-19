@@ -8,12 +8,12 @@ const NodeCache = require('node-cache');
 const cache = new NodeCache({ stdTTL: 1800, checkperiod: 120 });
 
 // ============ API CONFIGURATION FOR DASHBOARD ============
-// මෙමඟින් ඔබේ Dashboard එකට අවශ්‍ය විස්තර ස්වයංක්‍රීයවම එකතු වේ.
+// මෙමඟින් ඔබේ Dashboard එකේ Cards සහ Dropdowns වලට විස්තර ස්වයංක්‍රීයවම එකතු වේ.
 router.apiConfig = {
     name: "AoneRoom & YT API",
     name_si: "AoneRoom සහ යූටියුබ් API",
-    icon: "fa-download", // Dashboard Card එකට වැටෙන ලස්සන Icon එකක්
-    color: "#ff8c00",    // Dashboard එකේ තැඹිලි පාට Theme එකක්
+    icon: "fa-download", // Dashboard card එකේ ලස්සන icon එකක්
+    color: "#ff8c00",    // Dashboard එකේ තැඹිලි පාට theme එකක්
     base_path: "/aone",
     enabled: true,
     endpoints: [
@@ -32,7 +32,7 @@ router.apiConfig = {
             path: "/info",
             params: ["path"],
             required_params: ["path"],
-            example: "/aone/info?path=/subject/12345",
+            example: "/aone/info?path=spider-man-homecoming-ylSxcJY0uNa",
             description: "Get detailed movie metadata and direct download links"
         },
         {
@@ -147,8 +147,9 @@ async function getAoneMovieInfo(detailPath) {
         if (!movieData || !movieData.subjectId) {
             return {
                 success: false,
-                error: "Movie ID not found",
-                debug: detailRes.data
+                error: "Movie ID not found or invalid detailPath",
+                debug_path: detailPath,
+                debug_response: detailRes.data
             };
         }
 
@@ -286,7 +287,7 @@ async function downloadYouTube(url) {
 
 // ============ ROUTES ============
 
-// Root Info Endpoint
+// Root API Info
 router.get('/', (req, res) => {
     res.json({
         status: true,
@@ -298,9 +299,15 @@ router.get('/', (req, res) => {
 
 // Search Endpoint
 router.get('/search', async (req, res) => {
-    const { q, page } = req.query;
+    let qParam = req.query.q;
     
-    if (!q) {
+    // Fallback if Vercel serverless functions drop query
+    if (!qParam && req.url.includes('q=')) {
+        const urlParts = req.url.split('q=');
+        if (urlParts.length > 1) qParam = urlParts[1].split('&')[0];
+    }
+
+    if (!qParam) {
         return res.status(400).json({
             status: false,
             error: "Missing 'q' parameter",
@@ -309,7 +316,8 @@ router.get('/search', async (req, res) => {
         });
     }
 
-    const result = await searchAoneMovies(q, parseInt(page) || 1);
+    const pageParam = req.query.page || 1;
+    const result = await searchAoneMovies(decodeURIComponent(qParam), parseInt(pageParam));
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -317,20 +325,33 @@ router.get('/search', async (req, res) => {
     });
 });
 
-// Info Endpoint
+// Info Endpoint (⚡ FIXED: QUERY LOSS/VERCEL FALLBACK ADDED)
 router.get('/info', async (req, res) => {
-    const { path } = req.query;
+    // 1. මුලින්ම Express වල සාමාන්‍ය ක්‍රමයට query එක කියවන්න බලනවා
+    let pathParam = req.query.path;
     
-    if (!path) {
+    // 2. Vercel Serverless වලදී query parameter එක drop වුනොත් කෙලින්ම URL string එකෙන් කපා ගන්නවා
+    if (!pathParam && req.url.includes('path=')) {
+        const urlParts = req.url.split('path=');
+        if (urlParts.length > 1) {
+            pathParam = urlParts[1].split('&')[0];
+        }
+    }
+
+    if (!pathParam) {
         return res.status(400).json({
             status: false,
             error: "Missing 'path' parameter",
             author: "Mr Thinuzz",
-            usage: "/aone/info?path=/subject/12345"
+            usage: "/aone/info?path=spider-man-homecoming-ylSxcJY0uNa",
+            debug_info: { url_received: req.url, raw_query: req.query }
         });
     }
 
-    const result = await getAoneMovieInfo(path);
+    // URL safe decode කිරීම (spider-man-homecoming-ylSxcJY0uNa වැනි අගයන් සඳහා)
+    const decodedPath = decodeURIComponent(pathParam);
+
+    const result = await getAoneMovieInfo(decodedPath);
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -340,9 +361,15 @@ router.get('/info', async (req, res) => {
 
 // YouTube Downloader Endpoint
 router.get('/ytdl', async (req, res) => {
-    const { url } = req.query;
+    let urlParam = req.query.url;
+
+    // Vercel Fallback for url parameter
+    if (!urlParam && req.url.includes('url=')) {
+        const urlParts = req.url.split('url=');
+        if (urlParts.length > 1) urlParam = urlParts[1].split('&')[0];
+    }
     
-    if (!url) {
+    if (!urlParam) {
         return res.status(400).json({
             status: false,
             error: "Missing 'url' parameter",
@@ -351,8 +378,9 @@ router.get('/ytdl', async (req, res) => {
         });
     }
 
+    const decodedUrl = decodeURIComponent(urlParam);
     const youtubeRegex = /(youtube\.com|youtu\.be)/i;
-    if (!youtubeRegex.test(url)) {
+    if (!youtubeRegex.test(decodedUrl)) {
         return res.status(400).json({
             status: false,
             error: "Invalid YouTube URL",
@@ -360,7 +388,7 @@ router.get('/ytdl', async (req, res) => {
         });
     }
 
-    const result = await downloadYouTube(url);
+    const result = await downloadYouTube(decodedUrl);
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -370,9 +398,15 @@ router.get('/ytdl', async (req, res) => {
 
 // Direct Link Extractor Endpoint
 router.get('/direct', async (req, res) => {
-    const { url } = req.query;
+    let urlParam = req.query.url;
+
+    // Vercel Fallback for direct link extractor url
+    if (!urlParam && req.url.includes('url=')) {
+        const urlParts = req.url.split('url=');
+        if (urlParts.length > 1) urlParam = urlParts[1].split('&')[0];
+    }
     
-    if (!url) {
+    if (!urlParam) {
         return res.status(400).json({
             status: false,
             error: "Missing 'url' parameter",
@@ -381,7 +415,7 @@ router.get('/direct', async (req, res) => {
     }
 
     try {
-        const decodedUrl = decodeURIComponent(url);
+        const decodedUrl = decodeURIComponent(urlParam);
         let fileSize = "Unknown";
         let fileName = decodedUrl.split('/').pop().split('?')[0];
         
@@ -395,7 +429,7 @@ router.get('/direct', async (req, res) => {
                 fileSize = formatSize(parseInt(headRes.headers['content-length']));
             }
         } catch (e) {
-            // Head request errors are ignored
+            // Ignore head response errors
         }
 
         res.json({
