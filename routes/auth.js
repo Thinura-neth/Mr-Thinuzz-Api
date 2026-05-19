@@ -9,10 +9,10 @@ const {
   regenerateApiKey,
   getUserStats,
   RATE_LIMITS,
-  isFirebaseInitialized
-} = require('../config/firebase');
+  isInitialized
+} = require('../config/firebase-realtime');
 
-// Register new user
+// Register
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
   
@@ -29,7 +29,7 @@ router.post('/register', async (req, res) => {
     status: true,
     message: 'Account created successfully',
     data: result.data,
-    note: result.note
+    note: '⚠️ Save your API Key!'
   });
 });
 
@@ -91,7 +91,7 @@ router.get('/verify', async (req, res) => {
   });
 });
 
-// Get profile/stats
+// Profile
 router.get('/profile', async (req, res) => {
   const apiKey = req.headers['x-api-key'];
   
@@ -154,43 +154,23 @@ router.post('/regenerate', async (req, res) => {
   });
 });
 
-// Auth system info
+// Auth Info
 router.get('/info', (req, res) => {
   res.json({
     status: true,
     auth_enabled: true,
-    firebase_connected: isFirebaseInitialized,
+    database: isInitialized ? 'Firebase Realtime Database' : 'In-Memory',
     version: '2.0.0',
     rate_limits: RATE_LIMITS,
     endpoints: {
-      register: {
-        method: 'POST',
-        path: '/auth/register',
-        body: { email: 'string', password: 'string', name: 'string(optional)' }
-      },
-      login: {
-        method: 'POST',
-        path: '/auth/login',
-        body: { email: 'string', password: 'string' }
-      },
-      verify: {
-        method: 'GET',
-        path: '/auth/verify',
-        headers: { 'X-API-Key': 'your_api_key' }
-      },
-      profile: {
-        method: 'GET',
-        path: '/auth/profile',
-        headers: { 'X-API-Key': 'your_api_key' }
-      },
-      regenerate: {
-        method: 'POST',
-        path: '/auth/regenerate',
-        body: { email: 'string', password: 'string' }
-      }
+      register: { method: 'POST', path: '/auth/register', body: { email: 'string', password: 'string', name: 'string' } },
+      login: { method: 'POST', path: '/auth/login', body: { email: 'string', password: 'string' } },
+      verify: { method: 'GET', path: '/auth/verify', headers: { 'X-API-Key': 'your_api_key' } },
+      profile: { method: 'GET', path: '/auth/profile', headers: { 'X-API-Key': 'your_api_key' } },
+      regenerate: { method: 'POST', path: '/auth/regenerate', body: { email: 'string', password: 'string' } }
     },
-    example_curl: {
-      register: 'curl -X POST http://localhost:3000/auth/register -H "Content-Type: application/json" -d \'{"email":"user@example.com","password":"123456","name":"Test User"}\'',
+    example: {
+      register: 'curl -X POST http://localhost:3000/auth/register -H "Content-Type: application/json" -d \'{"email":"user@example.com","password":"123456"}\'',
       api_call: 'curl -X GET "http://localhost:3000/movie/search?q=test" -H "X-API-Key: YOUR_API_KEY"'
     }
   });
