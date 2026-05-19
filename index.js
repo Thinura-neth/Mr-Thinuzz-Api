@@ -17,10 +17,10 @@ app.use(express.static('public'));
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// Dynamic Routes තොරතුරු ගබඩා කිරීමට Global Object එකක් නිර්මාණය කිරීම
+// Dynamic Routes තොරතුරු ගබඩා කිරීමට Global Object එකක්
 global.loadedRoutesInfo = {};
 
-// ============ AUTO-LOAD ALL ROUTES FROM ROUTES/ FOLDER ============
+// ============ AUTO-PARSING & LOADING ALL ROUTES ============
 const routesPath = path.join(__dirname, 'routes');
 let routeFiles = [];
 
@@ -31,25 +31,58 @@ if (fs.existsSync(routesPath)) {
         const routeName = file.replace('.js', '');
         const routeHandler = require(path.join(routesPath, file));
         
-        // Router එක ඇතුළේ apiConfig එකක් තිබේ නම් එය global object එකට එකතු කරයි
-        if (routeHandler.apiConfig) {
-            global.loadedRoutesInfo[routeName] = routeHandler.apiConfig;
-        } else {
-            // කිසිදු config එකක් නැතිනම් default සැකසුමක් සාදයි
-            global.loadedRoutesInfo[routeName] = {
-                name: `${routeName.toUpperCase()} API`,
-                name_si: `${routeName.toUpperCase()} API`,
-                icon: "fa-code",
-                color: "#6b7280",
-                base_path: `/${routeName}`,
-                enabled: true,
-                endpoints: []
-            };
-        }
-        
-        // Express Router එක ඇතුළත් කිරීම (e.g., app.use('/movie', movieRouter))
+        // 1. මුලින්ම Express Router එක ඇතුළත් කරන්න
         app.use(`/${routeName}`, routeHandler);
-        console.log(`✅ Loaded route dynamic info: /${routeName}`);
+        
+        // 2. ⚡ Router එක ඇතුළේ තියෙන endpoints ස්වයංක්‍රීයවම සොයාගැනීම (Auto-generation)
+        const endpoints = [];
+        
+        if (routeHandler.stack) {
+            routeHandler.stack.forEach(layer => {
+                if (layer.route) {
+                    const pathStr = layer.route.path;
+                    // ප්‍රධාන '/' route එක විස්තර ලැයිස්තුවට දැමීම මඟහරින්න (අවශ්‍ය නම් පමණක් ගන්න)
+                    if (pathStr === '/') return; 
+
+                    const methods = Object.keys(layer.route.methods).map(m => m.toUpperCase());
+                    
+                    // Route එකේ parameters තියෙනවාද බලන්න (e.g., query params අනුමානය කරන්න)
+                    // සාමාන්‍යයෙන් query params කේතයෙන් auto අහුවෙන්නේ නැති නිසා default එකක් දාමු
+                    let params = [];
+                    let required_params = [];
+                    
+                    if (pathStr.includes('search')) { params = ['q']; required_params = ['q']; }
+                    if (pathStr.includes('info') || pathStr.includes('download')) { params = ['url']; required_params = ['url']; }
+
+                    endpoints.push({
+                        name: pathStr.replace('/', '').replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()), // ලස්සන නමක් හැදීම
+                        method: methods[0] || 'GET',
+                        path: pathStr,
+                        params: params,
+                        required_params: required_params,
+                        example: `/${routeName}${pathStr}${params.length ? `?${params[0]}=test` : ''}`,
+                        description: `Auto-generated endpoint for /${routeName}${pathStr}`
+                    });
+                }
+            });
+        }
+
+        // 3. ලස්සන Icon සහ Color එකක් දාලා Config එක Auto-generate කිරීම
+        // එකම ෆෝල්ඩර එකේ විවිධ ඒවට වෙනස් icon වැටෙන්න default ලිස්ට් එකක් දාමු
+        const icons = { game: 'fa-gamepad', movie: 'fa-film', anime: 'fa-dragon', news: 'fa-newspaper', ai: 'fa-robot' };
+        const colors = { game: '#10b981', movie: '#6366f1', anime: '#ec4899', news: '#3b82f6', ai: '#8b5cf6' };
+
+        global.loadedRoutesInfo[routeName] = {
+            name: `${routeName.charAt(0).toUpperCase() + routeName.slice(1)} API`,
+            name_si: `${routeName.charAt(0).toUpperCase() + routeName.slice(1)} API`,
+            icon: icons[routeName] || "fa-code",
+            color: colors[routeName] || "#6b7280",
+            base_path: `/${routeName}`,
+            enabled: true,
+            endpoints: endpoints
+        };
+        
+        console.log(`⚡ Fully Auto-Generated Info for: /${routeName}`);
     });
 } else {
     console.log('⚠️ Routes folder not found, creating...');
@@ -57,62 +90,23 @@ if (fs.existsSync(routesPath)) {
 }
 
 // ============ IMPORT ALL-APIS ROUTER ============
-// සටහන: allApisRouter එකට global.loadedRoutesInfo අවශ්‍ය බැවින් මෙය රවුට්ස් වලට පසුව යෙදිය යුතුය
 const allApisRouter = require('./all-apis');
 app.use('/all-apis', allApisRouter);
 
-// Health check with real-time stats
+// Health check
 app.get('/health', (req, res) => {
-    const uptimeSeconds = Math.floor(process.uptime());
-    const hours = Math.floor(uptimeSeconds / 3600);
-    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-    const seconds = uptimeSeconds % 60;
-    
-    res.json({
-        status: true,
-        uptime: `${hours}h ${minutes}m ${seconds}s`,
-        memory_usage: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
-        platform: os.platform(),
-        arch: os.arch(),
-        timestamp: new Date().toISOString()
-    });
+    res.json({ status: true, timestamp: new Date().toISOString() });
 });
 
-// Root - serve UI
+// Root UI
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        status: false,
-        error: "Route not found",
-        timestamp: new Date().toISOString()
-    });
-});
+// 404 & Error Handler
+app.use((req, res) => res.status(404).json({ status: false, error: "Route not found" }));
+app.use((err, req, res, next) => res.status(500).json({ status: false, error: err.message }));
 
-// Error handling
-app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    res.status(500).json({
-        status: false,
-        error: "Internal server error",
-        message: err.message,
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Start server
 app.listen(PORT, () => {
-    console.log(`
-    ╔════════════════════════════════════════════════════════════╗
-    ║     🚀 MR THINUZZ REAL-TIME API SERVER v4.0                ║
-    ╠════════════════════════════════════════════════════════════╣
-    ║  📍 URL: http://localhost:${PORT}                            ║
-    ║  👤 Author: Mr Thinuzz                                     ║
-    ║  📁 Loaded Routes: ${Object.keys(global.loadedRoutesInfo).join(', ')}
-    ║  🃏 Cards Endpoint: /all-apis/cards                        ║
-    ╚════════════════════════════════════════════════════════════╝
-    `);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
