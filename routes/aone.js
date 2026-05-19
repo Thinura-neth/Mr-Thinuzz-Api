@@ -7,8 +7,56 @@ const router = express.Router();
 const NodeCache = require('node-cache');
 const cache = new NodeCache({ stdTTL: 1800, checkperiod: 120 });
 
+// ============ API CONFIGURATION FOR DASHBOARD ============
+// මෙමඟින් ඔබේ Dashboard එකට අවශ්‍ය විස්තර ස්වයංක්‍රීයවම එකතු වේ.
+router.apiConfig = {
+    name: "AoneRoom & YT API",
+    name_si: "AoneRoom සහ යූටියුබ් API",
+    icon: "fa-download", // Dashboard Card එකට වැටෙන ලස්සන Icon එකක්
+    color: "#ff8c00",    // Dashboard එකේ තැඹිලි පාට Theme එකක්
+    base_path: "/aone",
+    enabled: true,
+    endpoints: [
+        {
+            name: "Search Aone Movies",
+            method: "GET",
+            path: "/search",
+            params: ["q", "page"],
+            required_params: ["q"],
+            example: "/aone/search?q=oppenheimer",
+            description: "Search movies from AoneRoom database"
+        },
+        {
+            name: "Aone Movie Info & Downloads",
+            method: "GET",
+            path: "/info",
+            params: ["path"],
+            required_params: ["path"],
+            example: "/aone/info?path=/subject/12345",
+            description: "Get detailed movie metadata and direct download links"
+        },
+        {
+            name: "YouTube Downloader",
+            method: "GET",
+            path: "/ytdl",
+            params: ["url"],
+            required_params: ["url"],
+            example: "/aone/ytdl?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            description: "Extract high-quality video and audio download links from YouTube"
+        },
+        {
+            name: "Direct Link Extractor",
+            method: "GET",
+            path: "/direct",
+            params: ["url"],
+            required_params: ["url"],
+            example: "/aone/direct?url=https://example.com/file.mp4",
+            description: "Extract direct stream link and fetch content headers"
+        }
+    ]
+};
+
 // ============ CONSTANTS ============
-// Inspect එකෙන් ගත්ත අලුත්ම x-user එක අනිවාර්යයෙන්ම මෙතනට දාන්න
 const X_USER = '{"appType":3}';
 
 const commonHeaders = {
@@ -91,7 +139,6 @@ async function getAoneMovieInfo(detailPath) {
     if (cached) return cached;
 
     try {
-        // Step 1: Get Movie Details
         const detailUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/detail?detailPath=${detailPath}`;
         const detailRes = await axios.get(detailUrl, { headers: commonHeaders, timeout: 30000 });
         
@@ -105,7 +152,6 @@ async function getAoneMovieInfo(detailPath) {
             };
         }
 
-        // Step 2: Get Download Links
         const dlUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/download`;
         const dlRes = await axios.get(dlUrl, {
             params: {
@@ -123,7 +169,6 @@ async function getAoneMovieInfo(detailPath) {
 
         const links = dlRes.data?.data?.list || [];
 
-        // Process genres
         let genres = [];
         if (movieData.genre) {
             if (Array.isArray(movieData.genre)) {
@@ -133,7 +178,6 @@ async function getAoneMovieInfo(detailPath) {
             }
         }
 
-        // Process download links
         const downloadLinks = links.map(link => ({
             quality: link.name || "Unknown",
             size: link.size ? formatSize(parseInt(link.size)) : "Unknown",
@@ -201,7 +245,6 @@ async function downloadYouTube(url) {
         });
 
         const data = response.data;
-
         const medias = (data.medias || []).map(m => ({
             quality: m.quality || "Unknown",
             size: m.formattedSize || formatSize(m.size),
@@ -210,7 +253,6 @@ async function downloadYouTube(url) {
             url: m.url
         }));
 
-        // Separate video and audio
         const videos = medias.filter(m => m.type === 'video');
         const audios = medias.filter(m => m.type === 'audio');
 
@@ -244,29 +286,17 @@ async function downloadYouTube(url) {
 
 // ============ ROUTES ============
 
-// Main endpoint info
+// Root Info Endpoint
 router.get('/', (req, res) => {
     res.json({
         status: true,
-        name: "AoneRoom & YouTube Downloader API",
-        name_si: "AoneRoom සහ යූටියුබ් ඩවුන්ලෝඩ් API",
+        ...router.apiConfig,
         author: "Mr Thinuzz",
-        version: "1.0.0",
-        endpoints: {
-            "/aone/search": "Search movies - ?q=query&page=1",
-            "/aone/info": "Get movie info & download links - ?path=detailPath",
-            "/aone/ytdl": "Download YouTube videos - ?url=youtube_url"
-        },
-        examples: {
-            search: "/aone/search?q=oppenheimer",
-            info: "/aone/info?path=/subject/12345",
-            ytdl: "/aone/ytdl?url=https://youtu.be/example"
-        },
-        note: "X-user header may need to be updated if API stops working. Check via browser inspect."
+        timestamp: new Date().toISOString()
     });
 });
 
-// Search endpoint
+// Search Endpoint
 router.get('/search', async (req, res) => {
     const { q, page } = req.query;
     
@@ -280,7 +310,6 @@ router.get('/search', async (req, res) => {
     }
 
     const result = await searchAoneMovies(q, parseInt(page) || 1);
-    
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -288,7 +317,7 @@ router.get('/search', async (req, res) => {
     });
 });
 
-// Info & Download endpoint
+// Info Endpoint
 router.get('/info', async (req, res) => {
     const { path } = req.query;
     
@@ -302,7 +331,6 @@ router.get('/info', async (req, res) => {
     }
 
     const result = await getAoneMovieInfo(path);
-    
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -310,7 +338,7 @@ router.get('/info', async (req, res) => {
     });
 });
 
-// YouTube Downloader endpoint
+// YouTube Downloader Endpoint
 router.get('/ytdl', async (req, res) => {
     const { url } = req.query;
     
@@ -319,11 +347,10 @@ router.get('/ytdl', async (req, res) => {
             status: false,
             error: "Missing 'url' parameter",
             author: "Mr Thinuzz",
-            usage: "/aone/ytdl?url=https://youtu.be/VIDEO_ID or https://www.youtube.com/watch?v=VIDEO_ID"
+            usage: "/aone/ytdl?url=youtube_url"
         });
     }
 
-    // Validate YouTube URL
     const youtubeRegex = /(youtube\.com|youtu\.be)/i;
     if (!youtubeRegex.test(url)) {
         return res.status(400).json({
@@ -334,7 +361,6 @@ router.get('/ytdl', async (req, res) => {
     }
 
     const result = await downloadYouTube(url);
-    
     res.json({
         ...result,
         author: "Mr Thinuzz",
@@ -342,7 +368,7 @@ router.get('/ytdl', async (req, res) => {
     });
 });
 
-// Direct download link extract (for aone download links that need processing)
+// Direct Link Extractor Endpoint
 router.get('/direct', async (req, res) => {
     const { url } = req.query;
     
@@ -356,28 +382,20 @@ router.get('/direct', async (req, res) => {
 
     try {
         const decodedUrl = decodeURIComponent(url);
-        
-        // Try to get file info using head request
         let fileSize = "Unknown";
         let fileName = decodedUrl.split('/').pop().split('?')[0];
         
         try {
             const headRes = await axios.head(decodedUrl, {
                 timeout: 10000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
             
             if (headRes.headers['content-length']) {
-                const bytes = parseInt(headRes.headers['content-length']);
-                if (bytes > 1073741824) fileSize = (bytes / 1073741824).toFixed(2) + ' GB';
-                else if (bytes > 1048576) fileSize = (bytes / 1048576).toFixed(2) + ' MB';
-                else if (bytes > 1024) fileSize = (bytes / 1024).toFixed(2) + ' KB';
-                else fileSize = bytes + ' B';
+                fileSize = formatSize(parseInt(headRes.headers['content-length']));
             }
         } catch (e) {
-            // Ignore head request errors
+            // Head request errors are ignored
         }
 
         res.json({
