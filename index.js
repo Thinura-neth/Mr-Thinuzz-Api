@@ -17,11 +17,10 @@ app.use(express.static('public'));
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// ============ IMPORT ALL-APIS ROUTER ============
-const allApisRouter = require('./all-apis');
-app.use('/all-apis', allApisRouter);
+// Dynamic Routes තොරතුරු ගබඩා කිරීමට Global Object එකක් නිර්මාණය කිරීම
+global.loadedRoutesInfo = {};
 
-// Auto-load all routes from routes/ folder
+// ============ AUTO-LOAD ALL ROUTES FROM ROUTES/ FOLDER ============
 const routesPath = path.join(__dirname, 'routes');
 let routeFiles = [];
 
@@ -31,74 +30,55 @@ if (fs.existsSync(routesPath)) {
     routeFiles.forEach(file => {
         const routeName = file.replace('.js', '');
         const routeHandler = require(path.join(routesPath, file));
+        
+        // Router එක ඇතුළේ apiConfig එකක් තිබේ නම් එය global object එකට එකතු කරයි
+        if (routeHandler.apiConfig) {
+            global.loadedRoutesInfo[routeName] = routeHandler.apiConfig;
+        } else {
+            // කිසිදු config එකක් නැතිනම් default සැකසුමක් සාදයි
+            global.loadedRoutesInfo[routeName] = {
+                name: `${routeName.toUpperCase()} API`,
+                name_si: `${routeName.toUpperCase()} API`,
+                icon: "fa-code",
+                color: "#6b7280",
+                base_path: `/${routeName}`,
+                enabled: true,
+                endpoints: []
+            };
+        }
+        
+        // Express Router එක ඇතුළත් කිරීම (e.g., app.use('/movie', movieRouter))
         app.use(`/${routeName}`, routeHandler);
-        console.log(`✅ Loaded route: /${routeName}`);
+        console.log(`✅ Loaded route dynamic info: /${routeName}`);
     });
 } else {
     console.log('⚠️ Routes folder not found, creating...');
     fs.mkdirSync(routesPath, { recursive: true });
 }
 
+// ============ IMPORT ALL-APIS ROUTER ============
+// සටහන: allApisRouter එකට global.loadedRoutesInfo අවශ්‍ය බැවින් මෙය රවුට්ස් වලට පසුව යෙදිය යුතුය
+const allApisRouter = require('./all-apis');
+app.use('/all-apis', allApisRouter);
+
 // Health check with real-time stats
 app.get('/health', (req, res) => {
-    res.json({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        author: "Mr Thinuzz",
-        uptime: `${Math.floor(process.uptime())} seconds`,
-        memory_usage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB`,
-        available_routes: routeFiles.map(f => f.replace('.js', '')),
-        endpoints_count: routeFiles.length
-    });
-});
-
-// Real-time server stats endpoint
-app.get('/server-stats', (req, res) => {
+    const uptimeSeconds = Math.floor(process.uptime());
+    const hours = Math.floor(uptimeSeconds / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const seconds = uptimeSeconds % 60;
+    
     res.json({
         status: true,
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        cpu: os.cpus().length,
+        uptime: `${hours}h ${minutes}m ${seconds}s`,
+        memory_usage: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
         platform: os.platform(),
-        node_version: process.version
+        arch: os.arch(),
+        timestamp: new Date().toISOString()
     });
 });
 
-// API Info with real-time endpoints
-app.get('/api-info', (req, res) => {
-    res.json({
-        name: "Mr Thinuzz Free APIs",
-        version: "3.1.0",
-        author: "Mr Thinuzz",
-        status: "online",
-        timestamp: new Date().toISOString(),
-        features: [
-            "No API Key Required",
-            "Unlimited Requests",
-            "Real-time Scraping",
-            "Live Endpoint Status",
-            "Auto-generated API Cards"
-        ],
-        endpoints: {
-            "GET /": "Beautiful UI Interface",
-            "GET /health": "Server health & stats",
-            "GET /server-stats": "Real-time server statistics",
-            "GET /api-info": "This API information",
-            "GET /all-apis": "API Aggregator",
-            "GET /all-apis/cards": "Auto-generated API cards data",
-            "GET /game/*": "Games API (FitGirl Repacks)",
-            "GET /movie/*": "Movies API (CineSubz)",
-            "GET /anime/*": "Anime API (Jikan + AniList)",
-            "GET /ai/*": "AI API (Coming Soon)",
-            "GET /search/*": "Search API (Coming Soon)",
-            "GET /stalk/*": "Stalk API (Coming Soon)",
-            "GET /download/*": "Download API (Coming Soon)"
-        }
-    });
-});
-
-// Root - serve beautiful UI
+// Root - serve UI
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -108,8 +88,7 @@ app.use((req, res) => {
     res.status(404).json({
         status: false,
         error: "Route not found",
-        timestamp: new Date().toISOString(),
-        message: "Check /api-info for available endpoints"
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -128,14 +107,12 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`
     ╔════════════════════════════════════════════════════════════╗
-    ║     🚀 MR THINUZZ REAL-TIME API SERVER v3.1                ║
+    ║     🚀 MR THINUZZ REAL-TIME API SERVER v4.0                ║
     ╠════════════════════════════════════════════════════════════╣
     ║  📍 URL: http://localhost:${PORT}                            ║
     ║  👤 Author: Mr Thinuzz                                     ║
-    ║  📁 Routes: ${routeFiles.map(f => f.replace('.js', '')).join(', ')}                ║
-    ║  🃏 Auto Cards: /all-apis/cards                           ║
-    ║  ⚡ Status: Online - Auto Card Generation Active          ║
-    ║  ✨ Unlimited Requests - No API Key Required              ║
+    ║  📁 Loaded Routes: ${Object.keys(global.loadedRoutesInfo).join(', ')}
+    ║  🃏 Cards Endpoint: /all-apis/cards                        ║
     ╚════════════════════════════════════════════════════════════╝
     `);
 });
