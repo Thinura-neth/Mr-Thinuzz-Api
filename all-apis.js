@@ -40,6 +40,15 @@ function reloadConfig() {
                         enabled: true,
                         endpoints: []
                     },
+                    games: {
+                        name: "Games API",
+                        name_si: "ක්‍රීඩා API", 
+                        icon: "fa-star",
+                        color: "#10b981",
+                        base_path: "/mvpro",
+                        enabled: true,
+                        endpoints: []
+                    },
                     anime: {
                         name: "Anime API",
                         name_si: "ඇනිමේ API",
