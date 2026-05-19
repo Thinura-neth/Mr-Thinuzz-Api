@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-    /* Ominisave Luxury Palette */
-    --bg: #f9f8ff; /* සුපිරි පිරිසිදු ලා දම්/සුදු පසුබිම */
-    --canvas: #f6f5fc;
+    /* Luxury Light Blue & Gray SaaS Palette */
+    --bg: #f3f4f6; /* Modern cool gray background */
+    --canvas: #f8fafc; /* Even lighter gray for specific sections */
     
-    /* True Frosted Glass Design (Glassmorphic) */
-    --card-bg: rgba(255, 255, 255, 0.65);
-    --card-hover: rgba(255, 255, 255, 0.9);
+    /* True Frosted Glass Design (Glassmorphic) with slight blue tint */
+    --card-bg: rgba(255, 255, 255, 0.7);
+    --card-hover: rgba(239, 246, 255, 0.9); /* Lighter blue on hover */
     
-    /* Colors */
-    --primary: #6366f1; /* Indigo / Omini Purple */
-    --primary-light: #818cf8;
-    --accent: #a855f7; /* Lavender Accent */
+    /* Dynamic Light Blue Accents (cool tones) */
+    --primary: #3b82f6; /* Core Light Blue */
+    --primary-light: #60a5fa;
+    --accent: #0ea5e9; /* Sky Blue Accent */
     
     /* System Feedback */
     --success: #10b981;
@@ -20,22 +20,22 @@
     --error: #ef4444;
     
     /* Elegant Typography */
-    --text: #0f172a; /* Slate Dark */
-    --text-muted: #64748b;
-    --text-light: #94a3b8;
+    --text: #111827; /* Near Black */
+    --text-muted: #4b5563; /* Medium Gray */
+    --text-light: #9ca3af; /* Light Gray */
     
-    /* Smooth Ultra-fine Borders & Soft Shadows (Ominisave Signature) */
-    --border: rgba(99, 102, 241, 0.08);
-    --border-hover: rgba(99, 102, 241, 0.2);
-    --shadow-sm: 0 2px 8px rgba(99, 102, 241, 0.02);
-    --shadow-md: 0 12px 34px rgba(99, 102, 241, 0.06);
-    --shadow-lg: 0 20px 50px rgba(99, 102, 241, 0.1);
+    /* Smooth Ultra-fine Borders & Soft Shadows with blue tint */
+    --border: rgba(59, 130, 246, 0.1);
+    --border-hover: rgba(59, 130, 246, 0.3);
+    --shadow-sm: 0 2px 8px rgba(59, 130, 246, 0.03);
+    --shadow-md: 0 12px 34px rgba(59, 130, 246, 0.08);
+    --shadow-lg: 0 20px 50px rgba(59, 130, 246, 0.12);
 
     /* Sidebar Geometry */
     --sidebar-width: 270px;
     --sidebar-collapsed-width: 78px;
     
-    /* Apple/Omini Fluid Animation Curve */
+    /* Apple/SaaS Fluid Animation Curve */
     --fx-curve: cubic-bezier(0.25, 1, 0.5, 1);
     --fx-duration: 0.4s;
 }
@@ -62,16 +62,16 @@ body {
     letter-spacing: -0.01em;
 }
 
-/* Premium Dynamic Ambient Mesh Grid */
+/* Premium Dynamic Ambient Mesh Grid with cool blue/pink tones */
 body::before {
     content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
     background-image: 
-        radial-gradient(circle at 0% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 45%),
-        radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 45%),
+        radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
         radial-gradient(circle at 50% 30%, rgba(244, 63, 94, 0.04) 0px, transparent 40%);
 }
 
-/* ============ PRELOADER (OMINI TYPE SMOOTH SCREEN) ============ */
+/* ============ PRELOADER (SMOOTH BLUE LOADING) ============ */
 .init-screen {
     position: fixed; inset: 0; background: #ffffff;
     z-index: 10000; display: flex; justify-content: center; align-items: center;
@@ -81,28 +81,28 @@ body::before {
     transition: all 0.7s var(--fx-curve);
 }
 .init-content { text-align: center; max-width: 340px; width: 100%; }
-.init-logo { font-size: 2.8rem; margin-bottom: 1.2rem; color: var(--primary); animation: ominiFloat 3s infinite ease-in-out; }
+.init-logo { font-size: 2.8rem; margin-bottom: 1.2rem; color: var(--primary); animation: blueFloat 3s infinite ease-in-out; }
 .init-title { font-size: 1.6rem; font-weight: 800; color: var(--text); letter-spacing: -0.04em; margin-bottom: 2rem; }
 .init-title span { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
 .progress-container { width: 100%; padding: 0 1.5rem; }
-.progress-bar-wrapper { width: 100%; height: 5px; background: rgba(99, 102, 241, 0.08); border-radius: 100px; overflow: hidden; margin-bottom: 1rem; }
+.progress-bar-wrapper { width: 100%; height: 5px; background: rgba(59, 130, 246, 0.08); border-radius: 100px; overflow: hidden; margin-bottom: 1rem; }
 .progress-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 100px; }
 .progress-percent { font-size: 0.85rem; color: var(--primary); font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 0.4rem; }
 .progress-status { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 
-@keyframes ominiFloat {
+@keyframes blueFloat {
     0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-8px) scale(1.04); filter: drop-shadow(0 15px 20px rgba(99, 102, 241, 0.2)); }
+    50% { transform: translateY(-8px) scale(1.04); filter: drop-shadow(0 15px 20px rgba(59, 130, 246, 0.2)); }
 }
 
 /* Container Framework */
 .app-container { display: flex; min-height: 100vh; }
 
-/* ============ MODERN GLASS SIDEBAR ============ */
+/* ============ MODERN BLUE GLASS SIDEBAR ============ */
 .sidebar {
     width: var(--sidebar-width);
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.5); /* Semi-transparent sidebar */
     backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
     border-right: 1px solid var(--border);
     position: fixed; inset: 0 right auto; height: 100vh; z-index: 1000;
@@ -150,7 +150,7 @@ body::before {
     padding: 0.8rem 1.2rem; background: transparent; border: 1px solid transparent;
     color: var(--text-muted); font-size: 0.92rem; font-weight: 600; cursor: pointer; border-radius: 12px; margin-bottom: 4px;
 }
-.sidebar-item:hover { color: var(--primary); background: rgba(99, 102, 241, 0.05); padding-left: 1.4rem; }
+.sidebar-item:hover { color: var(--primary); background: rgba(59, 130, 246, 0.05); padding-left: 1.4rem; }
 .sidebar-item.active {
     background: #ffffff; color: var(--primary); font-weight: 700;
     border-color: var(--border); box-shadow: var(--shadow-sm);
@@ -158,10 +158,10 @@ body::before {
 .sidebar-item i { font-size: 1.1rem; width: 20px; text-align: center; }
 .sidebar.collapsed .sidebar-item span { display: none; }
 .sidebar.collapsed .sidebar-item { justify-content: center; padding: 0.8rem 0; }
-.sidebar.collapsed .sidebar-item:hover { padding: 0.8rem 0; background: rgba(99, 102, 241, 0.05); }
+.sidebar.collapsed .sidebar-item:hover { padding: 0.8rem 0; background: rgba(59, 130, 246, 0.05); }
 
 .sidebar-badge {
-    margin-left: auto; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.15);
+    margin-left: auto; background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.15);
     color: var(--accent); font-size: 0.65rem; font-family: 'JetBrains Mono', monospace;
     padding: 2px 7px; border-radius: 6px; font-weight: 700;
 }
@@ -169,22 +169,22 @@ body::before {
 .sidebar-footer { padding: 1.8rem; border-top: 1px solid var(--border); }
 .sidebar-version { text-align: center; font-size: 0.7rem; color: var(--text-light); font-family: 'JetBrains Mono', monospace; }
 
-/* ============ MAIN OMINI CANVAS ============ */
+/* ============ MAIN BLUE CANVAS ============ */
 .main-content {
     flex: 1; margin-left: var(--sidebar-width); padding: 4.5rem; min-height: 100vh;
     max-width: calc(100% - var(--sidebar-width)); background-color: transparent;
 }
 .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-collapsed-width); max-width: calc(100% - var(--sidebar-collapsed-width)); }
 
-.tab-content { display: none; animation: ominiReveal 0.6s var(--fx-curve) forwards; }
+.tab-content { display: none; animation: blueReveal 0.6s var(--fx-curve) forwards; }
 .tab-content.active { display: block; }
 
-@keyframes ominiReveal {
+@keyframes blueReveal {
     from { opacity: 0; transform: translateY(12px) scale(0.99); filter: blur(4px); }
     to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
-/* ============ OMINI BENTO GRID DESIGN ============ */
+/* ============ BLUE BENTO GRID DESIGN ============ */
 .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.8rem; margin-bottom: 4rem; }
 .stat-card {
     background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 2rem;
@@ -203,7 +203,7 @@ body::before {
 .stat-value { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; color: var(--text); font-family: 'Inter', sans-serif; }
 .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.6rem; }
 
-/* API Bento Inventory Grid */
+/* API Bento Inventory Grid with blue hover */
 .api-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.8rem; margin-bottom: 4rem; }
 .api-card {
     background: var(--card-bg); border: 1px solid var(--border); border-radius: 22px; padding: 2.2rem;
@@ -232,112 +232,113 @@ body::before {
 .changelog-date { color: var(--text-light); font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; margin: 4px 0 1.2rem 0; }
 .changelog-content li { color: var(--text-muted); font-size: 0.95rem; margin: 0.7rem 0; list-style-position: inside; line-height: 1.6; }
 
-/* ============ OMINI API LIVE SANDBOX ============ */
+/* ============ BLUE API LIVE SANDBOX ============ */
 .demo-container { background: #ffffff; border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-md); }
-.demo-controls { padding: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; background: #fafafd; border-bottom: 1px solid var(--border); align-items: flex-end; }
+.demo-controls { padding: 2.5rem; display: flex; gap: 1.2rem; flex-wrap: wrap; background: #f1f5f9; /* Slate Gray for controls background */ border-bottom: 1px solid var(--border); align-items: flex-end; }
 
 .demo-select, .param-input input, .param-field input {
-    background: #ffffff; border: 1px solid rgba(99, 102, 241, 0.15); color: var(--text);
+    background: #ffffff; border: 1px solid rgba(59, 130, 246, 0.15); color: var(--text);
     padding: 0.95rem 1.4rem; border-radius: 12px; font-size: 0.92rem; outline: none;
     font-family: 'Inter', sans-serif; font-weight: 500; width: 100%; box-shadow: var(--shadow-sm);
 }
-.demo-select:focus, .param-input input:focus, .param-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+.demo-select:focus, .param-input input:focus, .param-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
 .demo-select { min-width: 200px; cursor: pointer; }
 .param-input { flex: 2; min-width: 260px; }
 .param-group { display: flex; gap: 1.2rem; width: 100%; flex-wrap: wrap; }
 .param-field { flex: 1; min-width: 200px; }
 .param-field label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px; }
 
-/* Premium Rounded Action Button */
+/* Premium Rounded Action Button with Blue Gradient */
 .btn-primary {
     background: linear-gradient(135deg, var(--primary), var(--primary-light)); border: none; color: #ffffff;
     padding: 0.95rem 2rem; border-radius: 12px; cursor: pointer;
     font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 10px;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25);
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(99, 102, 241, 0.35); filter: brightness(1.05); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(59, 130, 246, 0.35); filter: brightness(1.05); }
 
 .demo-response { padding: 2.5rem; background: #ffffff; }
 .response-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .response-header i { cursor: pointer; font-size: 1.1rem; color: var(--text-light); }
 .response-header i:hover { color: var(--primary); }
 
-/* Clean Codeblock Light Dashboard Theme */
+/* Clean Codeblock Gray Dashboard Theme */
 .demo-response pre {
-    background: #f8fafc; border: 1px solid rgba(99, 102, 241, 0.08);
+    background: #e5e7eb; /* Cool gray codeblock background */
+    border: 1px solid rgba(59, 130, 246, 0.08);
     padding: 1.8rem; border-radius: 16px; overflow-x: auto;
-    font-size: 0.88rem; font-family: 'JetBrains Mono', monospace; color: #312e81; line-height: 1.7;
+    font-size: 0.88rem; font-family: 'JetBrains Mono', monospace; color: #1e3a8a; line-height: 1.7;
     box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
 }
 
-/* ============ TECHNICAL DOCUMENTATION ============ */
+/* ============ TECHNICAL API DOCUMENTATION ============ */
 .doc-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 24px; padding: 3rem; margin-bottom: 3rem; box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); }
 .doc-section h3 { font-size: 1.35rem; font-weight: 800; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 12px; color: var(--text); }
 .doc-description { font-size: 0.98rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2.5rem; }
-.doc-description code { background: rgba(99, 102, 241, 0.06); color: var(--primary); padding: 0.25rem 0.6rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; border: 1px solid rgba(99, 102, 241, 0.1); font-weight: 600; }
+.doc-description code { background: rgba(59, 130, 246, 0.06); color: var(--primary); padding: 0.25rem 0.6rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; border: 1px solid rgba(59, 130, 246, 0.1); font-weight: 600; }
 
 .endpoint-card { border: 1px solid var(--border); background: #ffffff; border-radius: 16px; margin-bottom: 1.2rem; overflow: hidden; box-shadow: var(--shadow-sm); }
 .endpoint-header { padding: 1.4rem 2.2rem; display: flex; align-items: center; gap: 1.8rem; cursor: pointer; }
-.endpoint-header:hover { background: rgba(99, 102, 241, 0.02); }
+.endpoint-header:hover { background: rgba(59, 130, 246, 0.02); }
 
 .method { padding: 0.35rem 0.9rem; border-radius: 8px; font-size: 0.72rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; min-width: 70px; text-align: center; }
 .method.get { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
 .method.post { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
-.method.put { background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.2); }
+.method.put { background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid rgba(59, 130, 246, 0.2); }
 .method.delete { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.2); }
 
-.endpoint-path { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 0.92rem; font-weight: 700; flex: 1; }
+.endpoint-path { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 0.92rem; font-weight: 700; flex: 1; word-break: break-all; }
 .toggle-docs-icon { color: var(--text-light); transition: transform 0.3s; }
 .endpoint-card.expanded .toggle-docs-icon { transform: rotate(180deg); color: var(--primary); }
 
 .endpoint-body { padding: 0 2.2rem; max-height: 0; overflow: hidden; transition: max-height var(--fx-duration) var(--fx-curve); }
-.endpoint-card.expanded .endpoint-body { max-height: 1200px; padding: 2rem 2.2rem; border-top: 1px solid var(--border); background: #fafafd; }
+.endpoint-card.expanded .endpoint-body { max-height: 1200px; padding: 2rem 2.2rem; border-top: 1px solid var(--border); background: #f1f5f9; /* Cool Gray inside documents */ }
 .endpoint-body h4 { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.8rem; margin-top: 1.4rem; }
 
 .params-list { list-style: none; margin: 1.2rem 0; background: #ffffff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
 .params-list li { font-size: 0.88rem; margin: 0.6rem 0; display: flex; align-items: center; gap: 14px; font-family: 'JetBrains Mono', monospace; color: var(--text); }
-.params-list code { color: #ec4899; font-size: 0.88rem; font-weight: 700; }
+.params-list code { color: #db2777; font-size: 0.88rem; font-weight: 700; }
 .params-list .required { color: var(--error); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
 
-.example-code { display: block; background: #ffffff; border: 1px solid rgba(99, 102, 241, 0.12); padding: 1.5rem; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: #1e1b4b; }
+.example-code { display: block; background: #ffffff; border: 1px solid rgba(59, 130, 246, 0.12); padding: 1.5rem; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: #1e3a8a; }
 .test-this-btn {
-    background: #ffffff; border: 1px solid rgba(99, 102, 241, 0.25);
+    background: #ffffff; border: 1px solid rgba(59, 130, 246, 0.25);
     color: var(--primary); padding: 0.6rem 1.4rem; border-radius: 10px;
     cursor: pointer; margin-top: 1.8rem; font-size: 0.85rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
     box-shadow: var(--shadow-sm);
 }
-.test-this-btn:hover { background: var(--primary); color: #ffffff; border-color: transparent; transform: translateY(-1px); box-shadow: 0 6px 15px rgba(99, 102, 241, 0.2); }
+.test-this-btn:hover { background: var(--primary); color: #ffffff; border-color: transparent; transform: translateY(-1px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.2); }
 
 /* Status Spinner */
 .loading-spinner { text-align: center; padding: 6rem 0; color: var(--text-muted); font-size: 0.92rem; font-weight: 500; }
 .loading-spinner i { font-size: 1.6rem; color: var(--primary); margin-bottom: 1.2rem; }
 
-/* Responsive Grid Engine */
+/* Responsive Grid adaptation */
 @media (max-width: 768px) {
     .sidebar { left: calc(var(--sidebar-width) * -1); background: rgba(255, 255, 255, 0.98); }
-    .sidebar.open { left: 0; box-shadow: 25px 0 50px rgba(99, 102, 241, 0.15); }
+    .sidebar.open { left: 0; box-shadow: 25px 0 50px rgba(59, 130, 246, 0.15); }
     .main-content { margin-left: 0 !important; max-width: 100% !important; padding: 2.5rem 1.8rem; }
     .mobile-menu-btn { 
         position: fixed; bottom: 35px; right: 35px; width: 52px; height: 52px;
         background: linear-gradient(135deg, var(--primary), var(--accent)); color: #ffffff; border: none; border-radius: 50%;
         display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
-        z-index: 2000; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35); cursor: pointer;
+        z-index: 2000; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35); cursor: pointer;
     }
     .dashboard-stats, .api-grid { grid-template-columns: 1fr; gap: 1.4rem; }
     .demo-controls { flex-direction: column; align-items: stretch; padding: 1.8rem; }
 }
 
-/* Premium System Toast */
+/* Premium System Toast Notify */
 .toast-notification {
     position: fixed; bottom: 45px; right: 45px; background: #ffffff; color: var(--text); border: 1px solid var(--primary);
     padding: 1.2rem 2rem; border-radius: 16px; z-index: 100000; font-size: 0.92rem; font-weight: 700;
     display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow-lg);
-    animation: ominiSlideIn 0.4s var(--fx-curve) forwards;
+    animation: blueSlideIn 0.4s var(--fx-curve) forwards;
 }
-@keyframes ominiSlideIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes blueSlideIn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-/* Ultra-Fine Minimal Scrollbars */
+/* Minimal Cool Blue Scrollbars */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.15); border-radius: 100px; }
+::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.15); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
