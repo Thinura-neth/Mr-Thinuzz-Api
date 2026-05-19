@@ -1,15 +1,11 @@
 {
   "name": "mr-thinuzz-api",
-  "version": "3.1.0",
-  "description": "Mr Thinuzz Free APIs - CineSubz Scraper | With Firebase Authentication",
-  "main": "index.js",
+  "version": "3.0.0",
+  "description": "Mr Thinuzz Free APIs - CineSubz Scraper | Search, Info, Download | No API Key",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "start:auth": "node run-with-auth.js",
-    "start:secure": "node server-with-auth.js",
-    "dev": "nodemon index.js",
-    "dev:auth": "nodemon run-with-auth.js",
-    "test": "node tests/api.test.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -19,8 +15,7 @@
     "express-rate-limit": "^7.1.5",
     "node-cache": "^5.1.2",
     "crypto-js": "^4.2.0",
-    "protobufjs": "^7.2.5",
-    "firebase-admin": "^11.11.0"
+    "protobufjs": "^7.2.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -32,10 +27,7 @@
     "sinhala-subtitles",
     "api",
     "scraper",
-    "free-api",
-    "firebase",
-    "authentication",
-    "api-key"
+    "free-api"
   ],
   "author": "Mr Thinuzz",
   "license": "MIT",
