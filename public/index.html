@@ -1,156 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="si">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Mr Thinuzz API - Multi API Service</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Marketplace - Login / Register</title>
     <link rel="stylesheet" href="css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/auth.js"></script>
 </head>
 <body>
-    <!-- Initializing Screen -->
-    <div class="init-screen" id="initScreen">
-        <div class="init-content">
-            <div class="init-logo"><i class="fas fa-terminal"></i></div>
-            <div class="init-title">Mr Thinuzz <span>API</span></div>
-            <div class="progress-container">
-                <div class="progress-bar-wrapper"><div class="progress-bar-fill" id="initProgress"></div></div>
-                <div class="progress-percent" id="initPercent">0%</div>
-                <div class="progress-status" id="initStatus">Initializing...</div>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Login</button>
+                <button class="tab-btn" data-tab="register">Register</button>
+            </div>
+
+            <div id="login-form" class="auth-form active">
+                <h2>Welcome Back</h2>
+                <div class="alert" id="login-alert"></div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" placeholder="••••••••">
+                </div>
+                <button id="login-btn" class="btn-primary">Login</button>
+            </div>
+
+            <div id="register-form" class="auth-form">
+                <h2>Create Account</h2>
+                <div class="alert" id="register-alert"></div>
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" id="reg-name" placeholder="John Doe">
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" placeholder="min 6 characters">
+                </div>
+                <button id="register-btn" class="btn-primary">Register (Get 1000 Coins)</button>
             </div>
         </div>
     </div>
-
-    <!-- App Container with Sidebar -->
-    <div class="app-container">
-        <!-- Sidebar - Same for Desktop and Mobile -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <i class="fas fa-terminal"></i>
-                    <h1>Mr Thinuzz <span>API</span></h1>
-                </div>
-                <button class="sidebar-collapse-btn" onclick="toggleSidebar()">
-                    <i class="fas fa-chevron-left" id="collapseIcon"></i>
-                </button>
-            </div>
-            
-            <div class="sidebar-user">
-                <div class="user-avatar"><i class="fas fa-user-astronaut"></i></div>
-                <div class="user-info">
-                    <h4>Mr Thinuzz</h4>
-                    <p>API Developer</p>
-                </div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <div class="sidebar-section-title">MAIN</div>
-                <button class="sidebar-item active" data-tab="dashboard">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </button>
-                <button class="sidebar-item" data-tab="apis">
-                    <i class="fas fa-plug"></i>
-                    <span>Active APIs</span>
-                </button>
-                <button class="sidebar-item" data-tab="demo">
-                    <i class="fas fa-play-circle"></i>
-                    <span>Api Test</span>
-                </button>
-                <button class="sidebar-item" data-tab="docs">
-                    <i class="fas fa-book"></i>
-                    <span>Endpoints</span>
-                </button>
-                
-                <div class="sidebar-divider"></div>
-                
-                <div class="sidebar-section-title">TOOLS</div>
-                <button class="sidebar-item" onclick="window.open('/health','_blank')">
-                    <i class="fas fa-heartbeat"></i>
-                    <span>Health Check</span>
-                </button>
-                <button class="sidebar-item" onclick="window.open('/server-stats','_blank')">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Server Stats</span>
-                </button>
-                <button class="sidebar-item" onclick="window.open('/api-info','_blank')">
-                    <i class="fas fa-info-circle"></i>
-                    <span>API Info</span>
-                </button>
-                
-                <div class="sidebar-divider"></div>
-                
-                <div class="sidebar-section-title">RESOURCES</div>
-                <button class="sidebar-item" onclick="window.open('/all-apis/cards','_blank')">
-                    <i class="fas fa-id-card"></i>
-                    <span>Cards API</span>
-                    <span class="sidebar-badge">JSON</span>
-                </button>
-                <button class="sidebar-item" onclick="window.open('/all-apis','_blank')">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Aggregator</span>
-                    <span class="sidebar-badge">JSON</span>
-                </button>
-            </nav>
-
-            <div class="sidebar-footer">
-                <div class="sidebar-version">v3.1.0</div>
-            </div>
-        </aside>
-
-        <!-- Overlay for mobile when sidebar collapsed -->
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
-        <!-- Main Content -->
-        <main class="main-content" id="mainContent">
-            <!-- Dashboard Tab -->
-            <div id="dashboard" class="tab-content active">
-                <div class="dashboard-stats">
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-cube"></i></div><div class="stat-value" id="statApiCount">--</div><div class="stat-label">Available APIs</div></div>
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-code-branch"></i></div><div class="stat-value" id="statEndpointCount">--</div><div class="stat-label">Endpoints</div></div>
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-value" id="statUptime">--</div><div class="stat-label">Uptime</div></div>
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-microchip"></i></div><div class="stat-value" id="statMemory">--</div><div class="stat-label">Memory</div></div>
-                </div>
-
-                <div class="changelog-section">
-                    <div class="changelog-header"><i class="fas fa-history"></i><h3>Changelog</h3></div>
-                    <div class="changelog-item"><div class="changelog-version">v3.1.0</div><div class="changelog-date">2025-01-15</div><div class="changelog-content">Enhanced UI with sidebar navigation<ul><li>Desktop & mobile sidebar</li><li>Auto-generated API cards</li><li>Collapsible sidebar</li></ul></div></div>
-                    <div class="changelog-item"><div class="changelog-version">v3.0.0</div><div class="changelog-date">2025-01-10</div><div class="changelog-content">Major update<ul><li>Movies API (CineSubz)</li><li>Games API (FitGirl)</li><li>Anime API (Jikan+AniList)</li></ul></div></div>
-                </div>
-
-                <div id="apiCardsContainer" class="api-grid"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading API cards...</p></div></div>
-            </div>
-
-            <!-- APIs Tab -->
-            <div id="apis" class="tab-content"><div id="apisContainer" class="api-grid"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading APIs...</p></div></div></div>
-
-            <!-- Demo Tab -->
-            <div id="demo" class="tab-content">
-                <div class="demo-container">
-                    <div class="demo-controls">
-                        <select id="apiSelect" class="demo-select"><option value="">Select API</option></select>
-                        <select id="endpointSelect" class="demo-select"><option value="">Select endpoint</option></select>
-                        <div id="paramInput" class="param-input"><input type="text" placeholder="No parameters needed" disabled></div>
-                        <button id="testBtn" class="btn-primary"><i class="fas fa-play"></i> Test API</button>
-                    </div>
-                    <div class="demo-response">
-                        <div class="response-header"><span>Response</span><i class="fas fa-copy" onclick="copyResponse()"></i></div>
-                        <pre id="responseOutput"><code>// Select API and endpoint, then click Test API</code></pre>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Docs Tab -->
-            <div id="docs" class="tab-content"><div id="docsContainer"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading documentation...</p></div></div></div>
-        </main>
-    </div>
-
-    <!-- Mobile Menu Button (only visible when sidebar is collapsed on mobile) -->
-    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="openSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <script src="js/main.js"></script>
 </body>
 </html>

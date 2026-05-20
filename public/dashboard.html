@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/dashboard.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3>API Hub</h3>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-section="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-section="download-apis">
+                    <span class="icon">⬇️</span> Download APIs
+                </button>
+                <button class="nav-item" data-section="user-apis">
+                    <span class="icon">👤</span> User APIs
+                </button>
+                <button class="nav-item" data-section="game-apis">
+                    <span class="icon">🎮</span> Game APIs
+                </button>
+                <button class="nav-item" data-section="weather-apis">
+                    <span class="icon">🌤️</span> Weather APIs
+                </button>
+                <button class="nav-item" data-section="profile">
+                    <span class="icon">⚙️</span> Profile
+                </button>
+            </nav>
+            <button id="logout-btn" class="logout-btn">🚪 Logout</button>
+        </aside>
+
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>💰 Coins Balance</h4>
+                        <p id="coins-balance">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>🔑 Your API Key</h4>
+                        <div class="api-key-display">
+                            <span id="api-key-value">loading...</span>
+                            <button id="copy-api-key" class="icon-btn">📋</button>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>📞 Total Requests</h4>
+                        <p id="total-requests">0</p>
+                    </div>
+                </div>
+                <div class="info-box">
+                    <h4>📖 How to Use Your API</h4>
+                    <code>GET https://your-vercel-url.vercel.app/api/request?endpoint=file-info&api_key=YOUR_API_KEY</code>
+                    <p>Each request costs 1 coin. Register bonus: 1000 coins.</p>
+                </div>
+            </div>
+
+            <!-- Dynamic API Sections -->
+            <div id="download-apis-section" class="content-section"><h2>📥 Download APIs</h2><div id="download-apis-list" class="apis-list"></div></div>
+            <div id="user-apis-section" class="content-section"><h2>👤 User APIs</h2><div id="user-apis-list" class="apis-list"></div></div>
+            <div id="game-apis-section" class="content-section"><h2>🎮 Game APIs</h2><div id="game-apis-list" class="apis-list"></div></div>
+            <div id="weather-apis-section" class="content-section"><h2>🌤️ Weather APIs</h2><div id="weather-apis-list" class="apis-list"></div></div>
+
+            <!-- Profile Section -->
+            <div id="profile-section" class="content-section">
+                <h2>👤 Profile</h2>
+                <div class="profile-card">
+                    <p><strong>Name:</strong> <span id="profile-name"></span></p>
+                    <p><strong>Email:</strong> <span id="profile-email"></span></p>
+                    <p><strong>API Key:</strong> <span id="profile-apikey"></span></p>
+                    <p><strong>Coins:</strong> <span id="profile-coins"></span></p>
+                    <button id="refresh-coins-btn" class="btn-secondary">Refresh Coins</button>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
